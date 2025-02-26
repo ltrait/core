@@ -1,9 +1,11 @@
 use crate::filter::Filter;
+use crate::sorter::Sorter;
 use crate::source::Source;
 
 pub struct Launcher<'a, Cusion> {
     sources: Vec<Source<'a, Cusion>>,
     filters: Vec<Box<dyn Filter<'a, Context = Cusion> + 'a>>,
+    sorters: Vec<Box<dyn Sorter<'a, Context = Cusion> + 'a>>,
 
     /// if `filter_all` and number of filters is greater than 1,
     /// the launcher will show you entries where all of the filter predicates are true.
@@ -17,11 +19,12 @@ pub struct Launcher<'a, Cusion> {
     par_filter: bool,
 }
 
-impl<'a, Cusion> Default for Launcher<'a, Cusion> {
+impl<Cusion> Default for Launcher<'_, Cusion> {
     fn default() -> Self {
         Self {
             sources: Vec::default(),
             filters: Vec::default(),
+            sorters: Vec::default(),
             filter_all: false,
 
             #[cfg(feature = "parallel")]
@@ -53,7 +56,7 @@ impl<'a, Cusion> Launcher<'a, Cusion> {
         {
             use tokio_stream::StreamExt as _;
 
-            Box::pin(source.map(move |ctx| f(ctx)))
+            Box::pin(source.map(f))
         }
 
         self.sources.push(transform_source(source, transformer));
@@ -121,6 +124,72 @@ impl<'a, Cusion> Launcher<'a, Cusion> {
         self
     }
 
+    fn add_sorter<SorterContext, SorterT, F>(mut self, sorter: SorterT, transformer: F) -> Self
+    where
+        F: Fn(&Cusion) -> SorterContext + Send + 'a,
+        SorterContext: 'a,
+        SorterT: Sorter<'a, Context = SorterContext> + 'a,
+        Cusion: 'a,
+    {
+        use std::marker::PhantomData;
+
+        struct SorterWrapper<'a, SorterContext, SorterT, F, Cusion>
+        where
+            F: Fn(&Cusion) -> SorterContext + Send + 'a,
+            SorterT: Sorter<'a, Context = SorterContext>,
+            SorterContext: 'a,
+        {
+            f: F,
+            sorter: SorterT,
+
+            _sorter_context: PhantomData<&'a SorterContext>,
+            _cusion: PhantomData<Cusion>,
+        }
+
+        impl<'a, SorterContext, SorterT, F, Cusion> SorterWrapper<'a, SorterContext, SorterT, F, Cusion>
+        where
+            F: Fn(&Cusion) -> SorterContext + Send + 'a,
+            SorterT: Sorter<'a, Context = SorterContext>,
+            SorterContext: 'a,
+            Cusion: 'a,
+        {
+            fn new(sorter: SorterT, transformer: F) -> Self {
+                Self {
+                    f: transformer,
+                    sorter,
+
+                    _sorter_context: PhantomData,
+                    _cusion: PhantomData,
+                }
+            }
+        }
+
+        impl<'a, SorterContext, SorterT, F, Cusion> Sorter<'a>
+            for SorterWrapper<'a, SorterContext, SorterT, F, Cusion>
+        where
+            F: Fn(&Cusion) -> SorterContext + Send + 'a,
+            SorterT: Sorter<'a, Context = SorterContext>,
+            SorterContext: 'a,
+            Cusion: 'a,
+        {
+            type Context = Cusion;
+
+            fn compare(
+                &self,
+                lhs: &Self::Context,
+                rhs: &Self::Context,
+                input: &str,
+            ) -> std::cmp::Ordering {
+                (self.sorter).compare(&(self.f)(lhs), &(self.f)(rhs), input)
+            }
+        }
+
+        self.sorters
+            .push(Box::new(SorterWrapper::new(sorter, transformer)));
+
+        self
+    }
+
     #[cfg(feature = "parallel")]
     fn par_sort(mut self, flag: bool) -> self {
         self.par_sort = flag;
@@ -157,6 +226,17 @@ mod tests {
 
         assert_eq!(_launcher.filters.len(), 1);
 
+        Ok(())
+    }
+
+    #[test]
+    fn add_sorter() -> Result<(), Box<dyn std::error::Error>> {
+        let _launcher = Launcher::default().add_sorter(
+            crate::sorter::ClosureSorter::new(|lhs: &u8, rhs, input| lhs.cmp(rhs)),
+            |x| *x,
+        );
+
+        assert_eq!(_launcher.sorters.len(), 1);
         Ok(())
     }
 }
