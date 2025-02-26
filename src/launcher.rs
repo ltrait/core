@@ -37,7 +37,7 @@ impl<Cusion> Default for Launcher<'_, Cusion> {
 
 impl<'a, Cusion> Launcher<'a, Cusion> {
     /// Add a source to `self`, builder
-    fn add_source<SourceContext, F>(
+    pub fn add_source<SourceContext, F>(
         mut self,
         source: Source<'a, SourceContext>,
         transformer: F,
@@ -63,7 +63,7 @@ impl<'a, Cusion> Launcher<'a, Cusion> {
         self
     }
 
-    fn add_filter<FilterContext, FilterT, F>(mut self, filter: FilterT, transformer: F) -> Self
+    pub fn add_filter<FilterContext, FilterT, F>(mut self, filter: FilterT, transformer: F) -> Self
     where
         F: Fn(&Cusion) -> FilterContext + Send + 'a,
         FilterContext: 'a,
@@ -124,7 +124,7 @@ impl<'a, Cusion> Launcher<'a, Cusion> {
         self
     }
 
-    fn add_sorter<SorterContext, SorterT, F>(mut self, sorter: SorterT, transformer: F) -> Self
+    pub fn add_sorter<SorterContext, SorterT, F>(mut self, sorter: SorterT, transformer: F) -> Self
     where
         F: Fn(&Cusion) -> SorterContext + Send + 'a,
         SorterContext: 'a,
@@ -191,13 +191,13 @@ impl<'a, Cusion> Launcher<'a, Cusion> {
     }
 
     #[cfg(feature = "parallel")]
-    fn par_sort(mut self, flag: bool) -> self {
+    pub fn par_sort(mut self, flag: bool) -> self {
         self.par_sort = flag;
         self
     }
 
     #[cfg(feature = "parallel")]
-    fn par_filter(mut self, flag: bool) -> self {
+    pub fn par_filter(mut self, flag: bool) -> self {
         self.par_filter = flag;
         self
     }
