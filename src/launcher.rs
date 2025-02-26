@@ -62,7 +62,7 @@ impl<'a, Cusion> Launcher<'a, Cusion> {
 
     fn add_filter<FilterContext, FilterT, F>(mut self, filter: FilterT, transformer: F) -> Self
     where
-        F: Fn(Cusion) -> FilterContext + Send + 'a,
+        F: Fn(&Cusion) -> FilterContext + Send + 'a,
         FilterContext: 'a,
         FilterT: Filter<'a, Context = FilterContext> + 'a,
         Cusion: 'a,
@@ -71,7 +71,7 @@ impl<'a, Cusion> Launcher<'a, Cusion> {
 
         struct FilterWrapper<'a, FilterContext, FilterT, F, Cusion>
         where
-            F: Fn(Cusion) -> FilterContext + Send + 'a,
+            F: Fn(&Cusion) -> FilterContext + Send + 'a,
             FilterT: Filter<'a, Context = FilterContext>,
             FilterContext: 'a,
         {
@@ -84,7 +84,7 @@ impl<'a, Cusion> Launcher<'a, Cusion> {
 
         impl<'a, FilterContext, FilterT, F, Cusion> FilterWrapper<'a, FilterContext, FilterT, F, Cusion>
         where
-            F: Fn(Cusion) -> FilterContext + Send + 'a,
+            F: Fn(&Cusion) -> FilterContext + Send + 'a,
             FilterT: Filter<'a, Context = FilterContext>,
             FilterContext: 'a,
             Cusion: 'a,
@@ -103,15 +103,15 @@ impl<'a, Cusion> Launcher<'a, Cusion> {
         impl<'a, FilterContext, FilterT, F, Cusion> Filter<'a>
             for FilterWrapper<'a, FilterContext, FilterT, F, Cusion>
         where
-            F: Fn(Cusion) -> FilterContext + Send + 'a,
+            F: Fn(&Cusion) -> FilterContext + Send + 'a,
             FilterT: Filter<'a, Context = FilterContext>,
             FilterContext: 'a,
             Cusion: 'a,
         {
             type Context = Cusion;
 
-            fn predicate(&self, ctx: Self::Context, input: &str) -> bool {
-                self.filter.predicate((self.f)(ctx), input)
+            fn predicate(&self, ctx: &Self::Context, input: &str) -> bool {
+                self.filter.predicate(&(self.f)(ctx), input)
             }
         }
 
@@ -151,8 +151,8 @@ mod tests {
     #[test]
     fn add_filter() -> Result<(), Box<dyn std::error::Error>> {
         let _launcher = Launcher::default().add_filter(
-            crate::filter::ClosureFilter::new(|x: u8, input| x == 0u8 && input == ""),
-            |x| x,
+            crate::filter::ClosureFilter::new(|&x: &u8, input| x == 0u8 && input == ""),
+            |x| *x,
         );
 
         assert_eq!(_launcher.filters.len(), 1);

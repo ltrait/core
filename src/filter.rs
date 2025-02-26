@@ -3,17 +3,17 @@
 pub trait Filter<'a> {
     type Context: 'a;
 
-    fn predicate(&self, ctx: Self::Context, input: &str) -> bool;
+    fn predicate(&self, ctx: &Self::Context, input: &str) -> bool;
 }
 
 pub struct ClosureFilter<'a, Context, F>(F, std::marker::PhantomData<&'a Context>)
 where
-    F: Fn(Context, &str) -> bool,
+    F: Fn(&Context, &str) -> bool,
     Context: 'a;
 
 impl<'a, Context, F> ClosureFilter<'a, Context, F>
 where
-    F: Fn(Context, &str) -> bool,
+    F: Fn(&Context, &str) -> bool,
     Context: 'a,
 {
     pub fn new(f: F) -> Self {
@@ -23,12 +23,12 @@ where
 
 impl<'a, Context, F> Filter<'a> for ClosureFilter<'a, Context, F>
 where
-    F: Fn(Context, &str) -> bool,
+    F: Fn(&Context, &str) -> bool,
     Context: 'a,
 {
     type Context = Context;
 
-    fn predicate(&self, ctx: Self::Context, input: &str) -> bool {
+    fn predicate(&self, ctx: &Self::Context, input: &str) -> bool {
         (self.0)(ctx, input)
     }
 }
