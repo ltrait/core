@@ -7,10 +7,10 @@ pub struct Launcher<'a, Cusion> {
     filters: Vec<Box<dyn Filter<'a, Context = Cusion> + 'a>>,
     sorters: Vec<Box<dyn Sorter<'a, Context = Cusion> + 'a>>,
 
-    /// if `filter_all` and number of filters is greater than 1,
+    /// if `filter_and` and number of filters is greater than 1,
     /// the launcher will show you entries where all of the filter predicates are true.
     /// the default is false.
-    filter_all: bool,
+    filter_and: bool,
 
     // TODO: impl
     #[cfg(feature = "parallel")]
@@ -25,7 +25,7 @@ impl<Cusion> Default for Launcher<'_, Cusion> {
             sources: Vec::default(),
             filters: Vec::default(),
             sorters: Vec::default(),
-            filter_all: false,
+            filter_and: false,
 
             #[cfg(feature = "parallel")]
             par_sort: false,
@@ -190,14 +190,19 @@ impl<'a, Cusion> Launcher<'a, Cusion> {
         self
     }
 
+    pub fn filter_and(mut self, flag: bool) -> Self {
+        self.filter_and = flag;
+        self
+    }
+
     #[cfg(feature = "parallel")]
-    pub fn par_sort(mut self, flag: bool) -> self {
+    pub fn par_sort(mut self, flag: bool) -> Self {
         self.par_sort = flag;
         self
     }
 
     #[cfg(feature = "parallel")]
-    pub fn par_filter(mut self, flag: bool) -> self {
+    pub fn par_filter(mut self, flag: bool) -> Self {
         self.par_filter = flag;
         self
     }
@@ -237,6 +242,7 @@ mod tests {
         );
 
         assert_eq!(_launcher.sorters.len(), 1);
+
         Ok(())
     }
 }
