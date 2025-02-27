@@ -14,6 +14,7 @@ where
     F: Fn(&Context, &Context, &str) -> std::cmp::Ordering,
     Context: 'a,
 {
+    #[allow(dead_code)]
     pub fn new(f: F) -> Self {
         Self(f, std::marker::PhantomData)
     }

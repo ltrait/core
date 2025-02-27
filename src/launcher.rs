@@ -1,11 +1,15 @@
+use crate::action::Action;
 use crate::filter::Filter;
 use crate::sorter::Sorter;
 use crate::source::Source;
 
+use std::marker::PhantomData;
+
 pub struct Launcher<'a, Cusion> {
-    sources: Vec<Source<'a, Cusion>>,
+    actions: Vec<Box<dyn Action<'a, Context = Cusion> + 'a>>,
     filters: Vec<Box<dyn Filter<'a, Context = Cusion> + 'a>>,
     sorters: Vec<Box<dyn Sorter<'a, Context = Cusion> + 'a>>,
+    sources: Vec<Source<'a, Cusion>>,
 
     /// if `filter_and` and number of filters is greater than 1,
     /// the launcher will show you entries where all of the filter predicates are true.
@@ -25,6 +29,8 @@ impl<Cusion> Default for Launcher<'_, Cusion> {
             sources: Vec::default(),
             filters: Vec::default(),
             sorters: Vec::default(),
+            actions: Vec::default(),
+
             filter_and: false,
 
             #[cfg(feature = "parallel")]
@@ -35,6 +41,12 @@ impl<Cusion> Default for Launcher<'_, Cusion> {
     }
 }
 
+/// note: use functions such as
+///
+/// * `std::convert::identity`
+/// * `std::convert::Into::into`
+///
+/// as the transformer function
 impl<'a, Cusion> Launcher<'a, Cusion> {
     /// Add a source to `self`, builder
     pub fn add_source<SourceContext, F>(
@@ -70,8 +82,6 @@ impl<'a, Cusion> Launcher<'a, Cusion> {
         FilterT: Filter<'a, Context = FilterContext> + 'a,
         Cusion: 'a,
     {
-        use std::marker::PhantomData;
-
         struct FilterWrapper<'a, FilterContext, FilterT, F, Cusion>
         where
             F: Fn(&Cusion) -> FilterContext + Send + 'a,
@@ -131,8 +141,6 @@ impl<'a, Cusion> Launcher<'a, Cusion> {
         SorterT: Sorter<'a, Context = SorterContext> + 'a,
         Cusion: 'a,
     {
-        use std::marker::PhantomData;
-
         struct SorterWrapper<'a, SorterContext, SorterT, F, Cusion>
         where
             F: Fn(&Cusion) -> SorterContext + Send + 'a,
@@ -190,6 +198,62 @@ impl<'a, Cusion> Launcher<'a, Cusion> {
         self
     }
 
+    pub fn add_action<ActionContext, ActionT, F>(mut self, action: ActionT, transformer: F) -> Self
+    where
+        F: Fn(Cusion) -> ActionContext + Send + 'a,
+        ActionT: Action<'a, Context = ActionContext> + 'a,
+        ActionContext: 'a,
+        Cusion: 'a,
+    {
+        struct ActionWrapper<'a, ActionContext, ActionT, F, Cusion>
+        where
+            F: Fn(Cusion) -> ActionContext + Send + 'a,
+            ActionT: Action<'a, Context = ActionContext>,
+            ActionContext: 'a,
+            Cusion: 'a,
+        {
+            f: F,
+            action: ActionT,
+
+            _cusion: PhantomData<&'a Cusion>,
+        }
+
+        impl<'a, ActionContext, ActionT, F, Cusion> ActionWrapper<'a, ActionContext, ActionT, F, Cusion>
+        where
+            F: Fn(Cusion) -> ActionContext + Send + 'a,
+            ActionT: Action<'a, Context = ActionContext>,
+            ActionContext: 'a,
+            Cusion: 'a,
+        {
+            fn new(action: ActionT, transformer: F) -> Self {
+                Self {
+                    f: transformer,
+                    action,
+                    _cusion: PhantomData,
+                }
+            }
+        }
+
+        impl<'a, ActionContext, ActionT, F, Cusion> Action<'a>
+            for ActionWrapper<'a, ActionContext, ActionT, F, Cusion>
+        where
+            F: Fn(Cusion) -> ActionContext + Send + 'a,
+            ActionT: Action<'a, Context = ActionContext>,
+            ActionContext: 'a,
+            Cusion: 'a,
+        {
+            type Context = Cusion;
+
+            fn act(&self, ctx: Self::Context) {
+                self.action.act((self.f)(ctx));
+            }
+        }
+        self.actions
+            .push(Box::new(ActionWrapper::new(action, transformer)));
+
+        self
+    }
+
     pub fn filter_and(mut self, flag: bool) -> Self {
         self.filter_and = flag;
         self
@@ -237,11 +301,23 @@ mod tests {
     #[test]
     fn add_sorter() -> Result<(), Box<dyn std::error::Error>> {
         let _launcher = Launcher::default().add_sorter(
-            crate::sorter::ClosureSorter::new(|lhs: &u8, rhs, input| lhs.cmp(rhs)),
+            crate::sorter::ClosureSorter::new(|lhs: &u8, rhs, _| lhs.cmp(rhs)),
             |x| *x,
         );
 
         assert_eq!(_launcher.sorters.len(), 1);
+
+        Ok(())
+    }
+
+    #[test]
+    fn add_action() -> Result<(), Box<dyn std::error::Error>> {
+        let _launcher = Launcher::default().add_action(
+            crate::action::ClosureAction::new(|x: u8| println!("{x}")),
+            std::convert::identity,
+        );
+
+        assert_eq!(_launcher.actions.len(), 1);
 
         Ok(())
     }
