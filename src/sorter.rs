@@ -1,4 +1,4 @@
-pub trait Sorter<'a> {
+pub trait Sorter<'a>: Send {
     type Context: 'a;
 
     fn compare(&self, lhs: &Self::Context, rhs: &Self::Context, input: &str) -> std::cmp::Ordering;
@@ -22,8 +22,8 @@ where
 
 impl<'a, Context, F> Sorter<'a> for ClosureSorter<'a, Context, F>
 where
-    F: Fn(&Context, &Context, &str) -> std::cmp::Ordering,
-    Context: 'a,
+    F: Fn(&Context, &Context, &str) -> std::cmp::Ordering + Send,
+    Context: 'a + Sync,
 {
     type Context = Context;
 

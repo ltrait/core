@@ -6,6 +6,7 @@ mod filter;
 mod launcher;
 mod sorter;
 mod source;
+mod ui;
 
 pub use crate::action::Action;
 pub use crate::filter::Filter;

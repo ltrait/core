@@ -1,6 +1,6 @@
 // これはwrapはされるけどstreamの状態でfilterするわけではない
 // 本当はasyncのほうがいいかも?
-pub trait Filter<'a> {
+pub trait Filter<'a>: Send {
     type Context: 'a;
 
     fn predicate(&self, ctx: &Self::Context, input: &str) -> bool;
@@ -24,8 +24,8 @@ where
 
 impl<'a, Context, F> Filter<'a> for ClosureFilter<'a, Context, F>
 where
-    F: Fn(&Context, &str) -> bool,
-    Context: 'a,
+    F: Fn(&Context, &str) -> bool + Send,
+    Context: 'a + Sync,
 {
     type Context = Context;
 

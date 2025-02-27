@@ -1,4 +1,4 @@
-pub trait Action<'a> {
+pub trait Action<'a>: std::marker::Send {
     type Context: 'a;
 
     fn act(&self, ctx: Self::Context);
@@ -22,8 +22,8 @@ where
 
 impl<'a, Context, F> Action<'a> for ClosureAction<'a, Context, F>
 where
-    F: Fn(Context),
-    Context: 'a,
+    F: Fn(Context) + Send,
+    Context: 'a + Sync,
 {
     type Context = Context;
 
