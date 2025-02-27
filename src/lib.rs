@@ -1,3 +1,4 @@
+pub use async_stream;
 pub use tokio_stream;
 
 mod action;
