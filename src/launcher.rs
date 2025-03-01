@@ -132,7 +132,7 @@ where
             type Context = Cusion;
 
             fn act(&self, ctx: &Self::Context) -> Result<()> {
-                self.action.act(&(self.f)(&ctx))
+                self.action.act(&(self.f)(ctx))
             }
         }
         self.actions
@@ -182,22 +182,13 @@ where
     /// A batch refers to the process of retrieving items from a source (or any other source) and sorting the filtered items.
     /// For performance reasons, the number of items retrieved in a single batch may be limited based on the count of items before filtering.
     ///
+    /// If a generator returns more items than the specified `batch_size`, all items will be added in one batch,
+    /// without retaining the extras for subsequent batches.
+    ///
     /// If `batch_size` is set to 0, all items are retrieved and displayed in one batch.
     /// The default value is 0.
     pub fn batch_size(mut self, batch_size: usize) -> Self {
         self.batcher.batch_size = batch_size;
-        self
-    }
-
-    #[cfg(feature = "parallel")]
-    pub fn par_sort(mut self, flag: bool) -> Self {
-        self.batcher.par_sort = flag;
-        self
-    }
-
-    #[cfg(feature = "parallel")]
-    pub fn par_filter(mut self, flag: bool) -> Self {
-        self.batcher.par_filter = flag;
         self
     }
 }

@@ -3,31 +3,51 @@ use color_eyre::Result;
 pub trait UI<'a> {
     type Context: 'a;
 
-    // TODO: クッションを返したい
     fn run<Cusion: 'a + Sync>(
         &self,
         batcher: crate::launcher::batcher::Batcher<Cusion, Self::Context>,
     ) -> impl std::future::Future<Output = Result<Cusion>> + Send;
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Buffer<T> {
     // あとからactionをじっこうするためにhashmapてきに
-    vec: Vec<(T, usize)>,
+    vec: Vec<T>,
     pos: usize,
+}
+
+impl<T> Default for Buffer<T> {
+    fn default() -> Self {
+        Self {
+            vec: vec![],
+            pos: 0,
+        }
+    }
 }
 
 impl<T> Buffer<T> {
     pub(crate) fn reset(&mut self) {
+        *self = Self::default();
+    }
+
+    pub(crate) fn reset_pos(&mut self) {
         self.pos = 0;
     }
 
-    fn as_mut(&mut self) -> &mut Vec<(T, usize)> {
+    pub(crate) fn as_mut(&mut self) -> &mut Vec<T> {
         &mut self.vec
     }
 
+    pub fn len(&self) -> usize {
+        self.vec.len()
+    }
+
+    pub fn push(&mut self, value: T) {
+        self.vec.push(value);
+    }
+
     /// not iterator
-    pub fn next(&mut self) -> Option<&(T, usize)> {
+    pub fn next(&mut self) -> Option<&T> {
         self.pos += 1;
         self.vec.get(self.pos - 1)
     }
@@ -51,7 +71,7 @@ mod tests {
         assert_eq!(buf.next(), Some((1u32, 1)).as_ref());
         assert_eq!(buf.next(), Some((2u32, 2)).as_ref());
         assert_eq!(buf.next(), None);
-        buf.reset();
+        buf.reset_pos();
         assert_eq!(buf.next(), Some((1u32, 1)).as_ref());
         assert_eq!(buf.next(), Some((2u32, 2)).as_ref());
         assert_eq!(buf.next(), None);

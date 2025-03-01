@@ -1,11 +1,15 @@
-use color_eyre::eyre::Result;
+use color_eyre::eyre::{Result, ensure};
 
 use crate::filter::Filter;
 use crate::generator::Generator;
 use crate::sorter::Sorter;
 use crate::source::Source;
 
+use crate::ui::Buffer;
+
 use std::marker::PhantomData;
+
+use tokio_stream::StreamExt as _;
 
 type CusionToUIF<'a, Cusion, UIContext> = Option<Box<dyn Fn(&Cusion) -> UIContext + 'a>>;
 
@@ -21,10 +25,7 @@ pub struct Batcher<'a, Cusion, UIContext> {
 
     pub(super) batch_size: usize,
 
-    #[cfg(feature = "parallel")]
-    pub(super) par_sort: bool,
-    #[cfg(feature = "parallel")]
-    pub(super) par_filter: bool,
+    state: BatcherState<'a, Cusion>,
 }
 
 impl<'a, Cusion, UIContext> Default for Batcher<'a, Cusion, UIContext>
@@ -42,10 +43,42 @@ where
             cusion_to_ui: None,
             filter_and: true,
 
-            #[cfg(feature = "parallel")]
-            par_sort: false,
-            #[cfg(feature = "parallel")]
-            par_filter: false,
+            state: BatcherState::default(),
+        }
+    }
+}
+
+struct BatcherState<'a, Cusion> {
+    input: &'a str,
+
+    /// Items sourced from Source and generators when first batch
+    /// The cache of the second and subsequent times is used.
+    ///
+    /// And Buffer's usize is `sourced_items`'s index
+    items: Vec<Cusion>,
+
+    // index of items
+    items_from_sources_i: Buffer<usize>,
+
+    peeked_item: Option<Cusion>,
+    // 本当に最初にsourceからitemを取得するときにまだ取得してpeeked_itemに入っていないだけなのに
+    // source_indexを一つ上げてしまって最初のsourceがsourceされなくなるからひつよう
+    first_source: bool,
+
+    gen_index: usize,
+    source_index: usize,
+}
+
+impl<Cusion> Default for BatcherState<'_, Cusion> {
+    fn default() -> Self {
+        Self {
+            input: "",
+            gen_index: 0,
+            source_index: 0,
+            first_source: true,
+            peeked_item: None,
+            items: vec![],
+            items_from_sources_i: Buffer::default(),
         }
     }
 }
@@ -54,9 +87,187 @@ impl<'a, Cusion, UIContext> Batcher<'a, Cusion, UIContext>
 where
     Cusion: std::marker::Send,
 {
-    pub fn compute_cusion(&self, id: usize) -> Result<Cusion> {
-        // TODO:
-        todo!()
+    /// Consumes (and destroys) the current instance, returning ownership of the `Cusion`.
+    ///
+    /// Call this function as the final step to retrieve the `Cusion`.
+    pub fn compute_cusion(mut self, id: usize) -> Result<Cusion> {
+        ensure!(
+            self.state.items.len() > id,
+            "Failed to get Cusion, index is over the length. Maybe the ui is not using the usize obtained from Buffer"
+        );
+
+        Ok(self.state.items.swap_remove(id))
+    }
+
+    /// Take Buffer and merge Items(UIContext) into the Buffer
+    /// Returns that whether there are items that have not yet been fully acquired(bool)
+    ///
+    /// This reset the position of buffer
+    pub async fn marge(&mut self, buf: &mut Buffer<(UIContext, usize)>) -> Result<bool>
+    where
+        Cusion: 'a,
+    {
+        ensure!(
+            self.cusion_to_ui.is_some(),
+            "Cusion to UIContext did not set. Did you set UI?(This error is probably not called because of the way Rust works!)"
+        );
+
+        buf.reset_pos();
+
+        let mut batch_count = if self.batch_size == 0 {
+            usize::MAX
+        } else {
+            self.batch_size
+        };
+
+        // Vec<Cusion>
+        // 最後に(UIContext, usize)に変換してmargeする
+        let mut v = vec![];
+
+        while batch_count != 0 {
+            if self.state.gen_index < self.generators.len() {
+                let cusions_from_gen: Vec<_> = self.generators[self.state.gen_index]
+                    .generate(self.state.input)
+                    .await
+                    .into_iter()
+                    .map(|c| {
+                        self.state.items.push(c);
+                        self.state.items.len() - 1
+                    })
+                    .collect();
+
+                let len = cusions_from_gen.len();
+
+                v.extend(cusions_from_gen);
+
+                if batch_count < len {
+                    batch_count = 0;
+                } else {
+                    batch_count -= len
+                }
+
+                self.state.gen_index += 1;
+            } else if self.state.source_index < self.sources.len() {
+                if let Some(cusion) = self.state.peeked_item.take() {
+                    batch_count -= 1;
+                    self.state.items.push(cusion);
+                    v.push(self.state.items.len() - 1);
+                    self.state
+                        .items_from_sources_i
+                        .push(self.state.items.len() - 1);
+                } else if !self.state.first_source {
+                    self.state.source_index += 1;
+                } else {
+                    self.state.first_source = false;
+                }
+
+                if let Some(cusion) = self.sources[self.state.source_index].next().await {
+                    self.state.peeked_item = Some(cusion);
+                } else {
+                    self.state.peeked_item = None;
+                }
+            } else if let Some(ci) = self.state.items_from_sources_i.next() {
+                v.push(*ci);
+            } else {
+                break;
+            }
+        }
+
+        let mut v: Vec<_> = v
+            .into_iter()
+            .filter(|ci| {
+                if self.filter_and {
+                    self.filters
+                        .iter()
+                        .all(|filter| filter.predicate(&self.state.items[*ci], self.state.input))
+                } else {
+                    self.filters
+                        .iter()
+                        .all(|filter| filter.predicate(&self.state.items[*ci], self.state.input))
+                }
+            })
+            .collect();
+
+        // sorterは順番に適用していくのと、逆にしてstd::Ordering::Equalが出たら次のやつを参照するっていうのが同義っぽいきがする
+        // どっちにするかだけど、std::Ordering::Equalが出たら戻るほうが(ここでは逆にしたりしない)計算量が少なそう
+
+        let sorterf = |lhs: &Cusion, rhs: &Cusion| {
+            use std::cmp::Ordering::*;
+            for si in &self.sorters {
+                match si.compare(lhs, rhs, self.state.input) {
+                    Equal => {
+                        continue;
+                    }
+                    ord => {
+                        return ord;
+                    }
+                }
+            }
+
+            Equal
+        };
+
+        v.sort_by(|lhs, rhs| sorterf(&self.state.items[*lhs], &self.state.items[*rhs]));
+
+        {
+            let dst = buf.as_mut();
+
+            let dst_owned = std::mem::take(dst);
+            let mut merged = Vec::with_capacity(dst_owned.len() + v.len());
+
+            let mut iter_dst = dst_owned.into_iter();
+            let mut iter_src = v.into_iter();
+
+            let mut next_dst = iter_dst.next();
+            let mut next_src = iter_src.next();
+
+            while let (Some(a), Some(b)) = (next_dst.as_ref(), next_src.as_ref()) {
+                if sorterf(&self.state.items[a.1], &self.state.items[*b])
+                    != std::cmp::Ordering::Greater
+                {
+                    merged.push(next_dst.take().unwrap());
+                    next_dst = iter_dst.next();
+                } else {
+                    merged.push({
+                        // まず、self.state.itemsにpushしてそれのindexとtupleにする
+                        let ui_ctx = (self.cusion_to_ui.as_ref().unwrap())(
+                            &self.state.items[*next_src.as_ref().unwrap()],
+                        );
+
+                        (ui_ctx, *next_src.as_ref().unwrap())
+                    });
+                    next_src = iter_src.next();
+                }
+            }
+
+            if let Some(val) = next_dst {
+                merged.push(val);
+                merged.extend(iter_dst);
+            }
+            if let Some(val) = next_src {
+                merged.push({
+                    let ui_ctx = (self.cusion_to_ui.as_ref().unwrap())(&self.state.items[val]);
+
+                    (ui_ctx, val)
+                });
+                merged.extend(iter_src.map(|ci| {
+                    let ui_ctx = (self.cusion_to_ui.as_ref().unwrap())(&self.state.items[ci]);
+
+                    (ui_ctx, ci)
+                }));
+            }
+
+            *dst = merged;
+        }
+
+        Ok(self.state.peeked_item.is_some())
+    }
+
+    /// Accepts user input, resets the internal state, and initiates processing of a new batch.
+    pub fn input(&mut self, buf: &mut Buffer<(UIContext, usize)>, input: &'a str) {
+        self.state.input = input;
+        buf.reset();
+        self.state.items_from_sources_i.reset();
     }
 
     /// Add a source to `self`, builder
