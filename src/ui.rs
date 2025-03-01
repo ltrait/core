@@ -1,10 +1,12 @@
+use color_eyre::Result;
+
 pub trait UI<'a> {
     type Context: 'a;
 
     fn run<Cusion: 'a + Sync>(
         &self,
         batcher: crate::launcher::batcher::Batcher<Cusion, Self::Context>,
-    ) -> impl std::future::Future<Output = usize> + Send;
+    ) -> impl std::future::Future<Output = Result<usize>> + Send;
 }
 
 #[derive(Debug, Default)]

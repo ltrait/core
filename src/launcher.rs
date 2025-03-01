@@ -1,5 +1,7 @@
 use std::marker::PhantomData;
 
+use color_eyre::eyre::Result;
+
 use crate::action::Action;
 use crate::filter::Filter;
 use crate::generator::Generator;
@@ -129,8 +131,8 @@ where
         {
             type Context = Cusion;
 
-            fn act(&self, ctx: Self::Context) {
-                self.action.act((self.f)(&ctx));
+            fn act(&self, ctx: Self::Context) -> Result<()> {
+                self.action.act((self.f)(&ctx))
             }
         }
         self.actions
@@ -159,8 +161,10 @@ where
         self
     }
 
-    pub async fn run(self) {
-        self.ui.unwrap().run(self.batcher).await;
+    pub async fn run(self) -> Result<()> {
+        let id: usize = self.ui.unwrap().run(self.batcher).await?;
+
+        Ok(())
     }
 
     /// If `filter_and` is true and more than one filter is provided,
