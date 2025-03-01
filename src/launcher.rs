@@ -163,8 +163,9 @@ where
 
     pub async fn run(self) -> Result<()> {
         let cusion: Cusion = self.ui.unwrap().run(self.batcher).await?;
+
         for ai in self.actions {
-            // ai.()
+            ai.act(&cusion)?;
         }
 
         Ok(())
