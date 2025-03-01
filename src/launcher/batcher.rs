@@ -1,3 +1,5 @@
+use color_eyre::eyre::Result;
+
 use crate::filter::Filter;
 use crate::generator::Generator;
 use crate::sorter::Sorter;
@@ -52,6 +54,11 @@ impl<'a, Cusion, UIContext> Batcher<'a, Cusion, UIContext>
 where
     Cusion: std::marker::Send,
 {
+    pub fn compute_cusion(&self, id: usize) -> Result<Cusion> {
+        // TODO:
+        todo!()
+    }
+
     /// Add a source to `self`, builder
     pub(super) fn add_source<SourceContext, F>(
         &mut self,

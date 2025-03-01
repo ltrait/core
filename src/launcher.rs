@@ -162,7 +162,10 @@ where
     }
 
     pub async fn run(self) -> Result<()> {
-        let id: usize = self.ui.unwrap().run(self.batcher).await?;
+        let cusion: Cusion = self.ui.unwrap().run(self.batcher).await?;
+        for ai in self.actions {
+            // ai.()
+        }
 
         Ok(())
     }

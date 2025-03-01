@@ -3,10 +3,11 @@ use color_eyre::Result;
 pub trait UI<'a> {
     type Context: 'a;
 
+    // TODO: クッションを返したい
     fn run<Cusion: 'a + Sync>(
         &self,
         batcher: crate::launcher::batcher::Batcher<Cusion, Self::Context>,
-    ) -> impl std::future::Future<Output = Result<usize>> + Send;
+    ) -> impl std::future::Future<Output = Result<Cusion>> + Send;
 }
 
 #[derive(Debug, Default)]
