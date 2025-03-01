@@ -2,6 +2,7 @@ use std::marker::PhantomData;
 
 use crate::action::Action;
 use crate::filter::Filter;
+use crate::generator::Generator;
 use crate::launcher::batcher::Batcher;
 use crate::sorter::Sorter;
 use crate::source::Source;
@@ -144,6 +145,17 @@ where
     {
         self.ui = Some(ui);
         self.batcher.cusion_to_ui = Some(Box::new(transformer));
+        self
+    }
+
+    pub fn add_generator<Item, GenT, F>(mut self, generator: GenT, transformer: F) -> Self
+    where
+        Item: 'a,
+        F: Fn(Item) -> Cusion + Sync + 'a,
+        GenT: Generator<Item = Item> + Sync + 'a,
+        Cusion: Sync + 'a,
+    {
+        self.batcher.add_generator(generator, transformer);
         self
     }
 

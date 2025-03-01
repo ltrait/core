@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 async-stream = "0.3.6"
+async-trait = "0.1.86"
 tokio-stream = "0.1.17"
 
 [dependencies.rayon]
