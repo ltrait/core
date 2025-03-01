@@ -23,6 +23,8 @@
     in
     {
       devShells.${system}.default = pkgs.mkShell {
+        name = "ltrait";
+
         buildInputs = with pkgs; [
           rust-bin
 
