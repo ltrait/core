@@ -6,7 +6,6 @@ use crate::source::Source;
 use std::marker::PhantomData;
 
 pub struct Batcher<'a, Cusion, UIContext> {
-    actions: Vec<Box<dyn Action<'a, Context = Cusion> + 'a>>,
     filters: Vec<Box<dyn Filter<'a, Context = Cusion> + 'a>>,
     sorters: Vec<Box<dyn Sorter<'a, Context = Cusion> + 'a>>,
     sources: Vec<Source<'a, Cusion>>,
@@ -31,7 +30,6 @@ where
 {
     fn default() -> Self {
         Self {
-            actions: vec![],
             filters: vec![],
             sorters: vec![],
             sources: vec![],
@@ -194,60 +192,6 @@ where
 
         self.sorters
             .push(Box::new(SorterWrapper::new(sorter, transformer)));
-    }
-
-    pub(super) fn add_action<ActionContext, ActionT, F>(&mut self, action: ActionT, transformer: F)
-    where
-        F: Fn(&Cusion) -> ActionContext + Send + 'a,
-        ActionT: Action<'a, Context = ActionContext> + 'a,
-        ActionContext: 'a,
-        Cusion: 'a + Sync,
-    {
-        struct ActionWrapper<'a, ActionContext, ActionT, F, Cusion>
-        where
-            F: Fn(&Cusion) -> ActionContext + Send + 'a,
-            ActionT: Action<'a, Context = ActionContext>,
-            ActionContext: 'a,
-            Cusion: 'a + Sync,
-        {
-            f: F,
-            action: ActionT,
-
-            _cusion: PhantomData<&'a Cusion>,
-        }
-
-        impl<'a, ActionContext, ActionT, F, Cusion> ActionWrapper<'a, ActionContext, ActionT, F, Cusion>
-        where
-            F: Fn(&Cusion) -> ActionContext + Send + 'a,
-            ActionT: Action<'a, Context = ActionContext>,
-            ActionContext: 'a,
-            Cusion: 'a + Sync,
-        {
-            fn new(action: ActionT, transformer: F) -> Self {
-                Self {
-                    f: transformer,
-                    action,
-                    _cusion: PhantomData,
-                }
-            }
-        }
-
-        impl<'a, ActionContext, ActionT, F, Cusion> Action<'a>
-            for ActionWrapper<'a, ActionContext, ActionT, F, Cusion>
-        where
-            F: Fn(&Cusion) -> ActionContext + Send + 'a,
-            ActionT: Action<'a, Context = ActionContext>,
-            ActionContext: 'a,
-            Cusion: 'a + std::marker::Sync,
-        {
-            type Context = Cusion;
-
-            fn act(&self, ctx: Self::Context) {
-                self.action.act((self.f)(&ctx));
-            }
-        }
-        self.actions
-            .push(Box::new(ActionWrapper::new(action, transformer)));
     }
 
     pub(super) fn filter_and(&mut self, flag: bool) {
