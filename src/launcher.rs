@@ -47,7 +47,6 @@ where
     UIContext: 'a + Send,
     Cusion: 'a + Send + Sync,
 {
-    /// Add a source to `self`, builder
     pub fn add_source<SourceContext, F>(
         mut self,
         source: Source<'a, SourceContext>,
@@ -152,22 +151,33 @@ where
         self.ui.unwrap().run(self.batcher).await;
     }
 
-    // settings
-
+    /// If `filter_and` is true and more than one filter is provided,
+    /// the launcher will display only entries that satisfy all filter predicates.
+    /// The default value is false.
     pub fn filter_and(mut self, flag: bool) -> Self {
-        self.batcher.filter_and(flag);
+        self.batcher.filter_and = flag;
+        self
+    }
+
+    /// A batch refers to the process of retrieving items from a source (or any other source) and sorting the filtered items.
+    /// For performance reasons, the number of items retrieved in a single batch may be limited based on the count of items before filtering.
+    ///
+    /// If `batch_size` is set to 0, all items are retrieved and displayed in one batch.
+    /// The default value is 0.
+    pub fn batch_size(mut self, batch_size: usize) -> Self {
+        self.batcher.batch_size = batch_size;
         self
     }
 
     #[cfg(feature = "parallel")]
     pub fn par_sort(mut self, flag: bool) -> Self {
-        self.batcher.par_sort(flag);
+        self.batcher.par_sort = flag;
         self
     }
 
     #[cfg(feature = "parallel")]
     pub fn par_filter(mut self, flag: bool) -> Self {
-        self.batcher.par_filter(flag);
+        self.batcher.par_filter = flag;
         self
     }
 }

@@ -1,4 +1,3 @@
-use crate::action::Action;
 use crate::filter::Filter;
 use crate::sorter::Sorter;
 use crate::source::Source;
@@ -10,18 +9,16 @@ pub struct Batcher<'a, Cusion, UIContext> {
     sorters: Vec<Box<dyn Sorter<'a, Context = Cusion> + 'a>>,
     sources: Vec<Source<'a, Cusion>>,
 
-    /// if `filter_and` and number of filters is greater than 1,
-    /// the launcher will show you entries where all of the filter predicates are true.
-    /// the default is false.
-    filter_and: bool,
+    pub(super) filter_and: bool,
 
     pub(super) cusion_to_ui: Option<Box<dyn Fn(&Cusion) -> UIContext + 'a>>,
 
-    // TODO: impl
+    pub(super) batch_size: usize,
+
     #[cfg(feature = "parallel")]
-    par_sort: bool,
+    pub(super) par_sort: bool,
     #[cfg(feature = "parallel")]
-    par_filter: bool,
+    pub(super) par_filter: bool,
 }
 
 impl<'a, Cusion, UIContext> Default for Batcher<'a, Cusion, UIContext>
@@ -33,8 +30,10 @@ where
             filters: vec![],
             sorters: vec![],
             sources: vec![],
-            filter_and: true,
+
+            batch_size: 0,
             cusion_to_ui: None,
+            filter_and: true,
 
             #[cfg(feature = "parallel")]
             par_sort: false,
@@ -43,8 +42,6 @@ where
         }
     }
 }
-
-// TODO: marge(pub)(&mut Buffer)
 
 impl<'a, Cusion, UIContext> Batcher<'a, Cusion, UIContext>
 where
@@ -192,20 +189,6 @@ where
 
         self.sorters
             .push(Box::new(SorterWrapper::new(sorter, transformer)));
-    }
-
-    pub(super) fn filter_and(&mut self, flag: bool) {
-        self.filter_and = flag;
-    }
-
-    #[cfg(feature = "parallel")]
-    pub(super) fn par_sort(&mut self, flag: bool) {
-        self.par_sort = flag;
-    }
-
-    #[cfg(feature = "parallel")]
-    pub(super) fn par_filter(&mut self, flag: bool) {
-        self.par_filter = flag;
     }
 }
 
