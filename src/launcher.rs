@@ -131,8 +131,8 @@ where
         {
             type Context = Cusion;
 
-            fn act(&self, ctx: Self::Context) -> Result<()> {
-                self.action.act((self.f)(&ctx))
+            fn act(&self, ctx: &Self::Context) -> Result<()> {
+                self.action.act(&(self.f)(&ctx))
             }
         }
         self.actions
