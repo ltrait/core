@@ -2,13 +2,13 @@ pub use async_trait;
 pub use color_eyre;
 pub use tokio_stream;
 
-mod action;
-mod filter;
-mod generator;
-mod launcher;
-mod sorter;
-mod source;
-mod ui;
+pub mod action;
+pub mod filter;
+pub mod generator;
+pub mod launcher;
+pub mod sorter;
+pub mod source;
+pub mod ui;
 
 pub use crate::action::Action;
 pub use crate::filter::Filter;
