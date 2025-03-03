@@ -42,6 +42,10 @@ impl<T> Buffer<T> {
         self.vec.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.vec.is_empty()
+    }
+
     pub fn push(&mut self, value: T) {
         self.vec.push(value);
     }
