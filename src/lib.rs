@@ -1,4 +1,3 @@
-pub use async_stream;
 pub use async_trait;
 pub use color_eyre;
 pub use tokio_stream;
