@@ -2,6 +2,16 @@
 name = "ltrait"
 version = "0.1.0"
 edition = "2024"
+description = " Yet Another Fuzzy Finder (Builder) for OS Wide, inspired from vim-fall and ddu.vim (and xmonad)"
+
+authors = ["satler <satler@satler.dev>"]
+
+
+documentation = "https://docs.rs/ltrait/"
+homepage = "https://crates.io/crates/ltrait"
+repository = "https://github.com/ltrait/ltrait"
+
+license = "MIT"
 
 [dependencies]
 async-trait = "0.1.86"
