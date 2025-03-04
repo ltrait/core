@@ -153,8 +153,8 @@ where
     pub fn add_generator<Item, GenT, F>(mut self, generator: GenT, transformer: F) -> Self
     where
         Item: 'a,
-        F: Fn(Item) -> Cusion + Sync + 'a,
-        GenT: Generator<Item = Item> + Sync + 'a,
+        F: Fn(Item) -> Cusion + Sync + Send + 'a,
+        GenT: Generator<Item = Item> + Sync + Send + 'a,
         Cusion: Sync + 'a,
     {
         self.batcher.add_generator(generator, transformer);

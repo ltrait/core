@@ -13,10 +13,14 @@ use tokio_stream::StreamExt as _;
 
 type CusionToUIF<'a, Cusion, UIContext> = Option<Box<dyn Fn(&Cusion) -> UIContext + Send + 'a>>;
 
+type FilterT<'a, Cusion> = Box<dyn Filter<'a, Context = Cusion> + Send + 'a>;
+type SorterT<'a, Cusion> = Box<dyn Sorter<'a, Context = Cusion> + Send + 'a>;
+type GenT<'a, Cusion> = Box<dyn Generator<Item = Cusion> + Send + 'a>;
+
 pub struct Batcher<'a, Cusion, UIContext> {
-    filters: Vec<Box<dyn Filter<'a, Context = Cusion> + 'a>>,
-    sorters: Vec<Box<dyn Sorter<'a, Context = Cusion> + 'a>>,
-    generators: Vec<Box<dyn Generator<Item = Cusion> + 'a>>,
+    filters: Vec<FilterT<'a, Cusion>>,
+    sorters: Vec<SorterT<'a, Cusion>>,
+    generators: Vec<GenT<'a, Cusion>>,
     sources: Vec<Source<'a, Cusion>>,
 
     pub(super) filter_and: bool,
@@ -391,8 +395,8 @@ where
     pub(super) fn add_generator<Item, GenT, F>(&mut self, generator: GenT, transformer: F)
     where
         Item: 'a,
-        F: Fn(Item) -> Cusion + Sync + 'a,
-        GenT: Generator<Item = Item> + Sync + 'a,
+        F: Fn(Item) -> Cusion + Sync + Send + 'a,
+        GenT: Generator<Item = Item> + Sync + Send + 'a,
         Cusion: Sync + 'a,
     {
         struct GenWrapper<Item, GenT, F, Cusion>
