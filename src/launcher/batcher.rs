@@ -11,7 +11,7 @@ use std::marker::PhantomData;
 
 use tokio_stream::StreamExt as _;
 
-type CusionToUIF<'a, Cusion, UIContext> = Option<Box<dyn Fn(&Cusion) -> UIContext + 'a>>;
+type CusionToUIF<'a, Cusion, UIContext> = Option<Box<dyn Fn(&Cusion) -> UIContext + Send + 'a>>;
 
 pub struct Batcher<'a, Cusion, UIContext> {
     filters: Vec<Box<dyn Filter<'a, Context = Cusion> + 'a>>,

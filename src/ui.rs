@@ -3,7 +3,7 @@ use color_eyre::Result;
 pub trait UI<'a> {
     type Context: 'a;
 
-    fn run<Cusion: 'a + Sync>(
+    fn run<Cusion: 'a + Send>(
         &self,
         batcher: crate::launcher::batcher::Batcher<Cusion, Self::Context>,
     ) -> impl std::future::Future<Output = Result<Cusion>> + Send;
