@@ -16,6 +16,9 @@ license = "MIT"
 async-trait = "0.1.86"
 color-eyre = "0.6.3"
 tokio-stream = "0.1.17"
+tracing = "0.1.41"
+tracing-log = "0.2.0"
+tracing-subscriber = { version = "0.3.19", features = ["local-time"] }
 
 [dev-dependencies]
 async-stream = "0.3.6"
