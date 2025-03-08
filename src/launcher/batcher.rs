@@ -29,7 +29,7 @@ pub struct Batcher<'a, Cusion, UIContext> {
 
     pub(super) batch_size: usize,
 
-    state: BatcherState<'a, Cusion>,
+    state: BatcherState<Cusion>,
 }
 
 impl<'a, Cusion, UIContext> Default for Batcher<'a, Cusion, UIContext>
@@ -52,8 +52,8 @@ where
     }
 }
 
-struct BatcherState<'a, Cusion> {
-    input: &'a str,
+struct BatcherState<Cusion> {
+    input: String,
 
     /// Items sourced from Source and generators when first batch
     /// The cache of the second and subsequent times is used.
@@ -73,10 +73,10 @@ struct BatcherState<'a, Cusion> {
     source_index: usize,
 }
 
-impl<Cusion> Default for BatcherState<'_, Cusion> {
+impl<Cusion> Default for BatcherState<Cusion> {
     fn default() -> Self {
         Self {
-            input: "",
+            input: "".into(),
             gen_index: 0,
             source_index: 0,
             first_source: true,
@@ -131,7 +131,7 @@ where
         while batch_count != 0 {
             if self.state.gen_index < self.generators.len() {
                 let cusions_from_gen: Vec<_> = self.generators[self.state.gen_index]
-                    .generate(self.state.input)
+                    .generate(&self.state.input)
                     .await
                     .into_iter()
                     .map(|c| {
@@ -183,11 +183,11 @@ where
                 if self.filter_and {
                     self.filters
                         .iter()
-                        .all(|filter| filter.predicate(&self.state.items[*ci], self.state.input))
+                        .all(|filter| filter.predicate(&self.state.items[*ci], &self.state.input))
                 } else {
                     self.filters
                         .iter()
-                        .all(|filter| filter.predicate(&self.state.items[*ci], self.state.input))
+                        .all(|filter| filter.predicate(&self.state.items[*ci], &self.state.input))
                 }
             })
             .collect();
@@ -198,7 +198,7 @@ where
         let sorterf = |lhs: &Cusion, rhs: &Cusion| {
             use std::cmp::Ordering::*;
             for si in &self.sorters {
-                match si.compare(lhs, rhs, self.state.input) {
+                match si.compare(lhs, rhs, &self.state.input) {
                     Equal => {
                         continue;
                     }
@@ -268,8 +268,8 @@ where
     }
 
     /// Accepts user input, resets the internal state, and initiates processing of a new batch.
-    pub fn input(&mut self, buf: &mut Buffer<(UIContext, usize)>, input: &'a str) {
-        self.state.input = input;
+    pub fn input(&mut self, buf: &mut Buffer<(UIContext, usize)>, input: &str) {
+        self.state.input = input.into();
         buf.reset();
         self.state.items_from_sources_i.reset();
     }
