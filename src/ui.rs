@@ -5,7 +5,7 @@ pub trait UI<'a> {
 
     fn run<Cusion: 'a + Send>(
         &self,
-        batcher: crate::launcher::batcher::Batcher<Cusion, Self::Context>,
+        batcher: crate::launcher::batcher::Batcher<'a, Cusion, Self::Context>,
     ) -> impl std::future::Future<Output = Result<Cusion>> + Send;
 }
 
