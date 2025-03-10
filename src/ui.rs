@@ -55,6 +55,10 @@ impl<T> Buffer<T> {
         self.pos += 1;
         self.vec.get(self.pos - 1)
     }
+
+    pub fn has_next(&self) -> bool {
+        self.pos + 1 < self.len()
+    }
 }
 
 #[cfg(test)]
