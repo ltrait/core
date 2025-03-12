@@ -30,7 +30,7 @@ impl<T> Buffer<T> {
         *self = Self::default();
     }
 
-    pub(crate) fn reset_pos(&mut self) {
+    pub fn reset_pos(&mut self) {
         self.pos = 0;
     }
 
