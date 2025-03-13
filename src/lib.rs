@@ -3,7 +3,6 @@ pub use color_eyre;
 pub use tokio_stream;
 
 pub use tracing::Level;
-use tracing_log::LogTracer;
 use tracing_subscriber::fmt::format::FmtSpan;
 
 pub mod action;
@@ -38,7 +37,6 @@ pub fn setup(log_level: Level) -> Result<()> {
     color_eyre::install()?;
 
     init_subscriber_with_level(log_level);
-    LogTracer::init()?;
 
     Ok(())
 }
