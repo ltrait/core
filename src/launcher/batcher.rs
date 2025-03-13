@@ -73,6 +73,36 @@ struct BatcherState<Cusion> {
     source_index: usize,
 }
 
+use debug_state::*;
+
+mod debug_state {
+    use super::BatcherState;
+    use std::fmt;
+
+    impl<Cusion> fmt::Debug for BatcherState<Cusion> {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            // itemsの件数を表示
+            let items_info = format!("{} item(s)", self.items.len());
+            // peeked_itemはSomeかNoneかを表示
+            let peeked_info = if self.peeked_item.is_some() {
+                "Some"
+            } else {
+                "None"
+            };
+
+            f.debug_struct("BatcherState")
+                .field("input", &self.input)
+                .field("items", &items_info)
+                .field("items_from_sources_i", &self.items_from_sources_i)
+                .field("peeked_item", &peeked_info)
+                .field("first_source", &self.first_source)
+                .field("gen_index", &self.gen_index)
+                .field("source_index", &self.source_index)
+                .finish()
+        }
+    }
+}
+
 impl<Cusion> Default for BatcherState<Cusion> {
     fn default() -> Self {
         Self {
@@ -107,7 +137,7 @@ where
     /// Returns that whether there are items that have not yet been fully acquired(bool)
     ///
     /// This reset the position of buffer
-    pub async fn marge(&mut self, buf: &mut Buffer<(UIContext, usize)>) -> Result<bool>
+    pub async fn merge(&mut self, buf: &mut Buffer<(UIContext, usize)>) -> Result<bool>
     where
         Cusion: 'a,
     {
@@ -161,15 +191,17 @@ where
                         .push(self.state.items.len() - 1);
                 } else if !self.state.first_source {
                     self.state.source_index += 1;
+                    if self.state.source_index == self.sources.len() {
+                        break;
+                    }
                 } else {
+                    // 初めての場合はpeeked_itemにいれるけど
                     self.state.first_source = false;
                 }
 
-                if let Some(cusion) = self.sources[self.state.source_index].next().await {
-                    self.state.peeked_item = Some(cusion);
-                } else {
-                    self.state.peeked_item = None;
-                }
+                // dbg!(&self.state);
+
+                self.state.peeked_item = self.sources[self.state.source_index].next().await;
             } else if let Some(ci) = self.state.items_from_sources_i.next() {
                 v.push(*ci);
             } else {
@@ -187,7 +219,7 @@ where
                 } else {
                     self.filters
                         .iter()
-                        .all(|filter| filter.predicate(&self.state.items[*ci], &self.state.input))
+                        .any(|filter| filter.predicate(&self.state.items[*ci], &self.state.input))
                 }
             })
             .collect();
