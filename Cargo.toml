@@ -1,6 +1,6 @@
 [package]
 name = "ltrait"
-version = "0.3.1"
+version = "0.3.2"
 edition = "2024"
 description = "Yet Another Fuzzy Finder (Builder) for OS Wide, inspired from vim-fall and ddu.vim (and xmonad)"
 

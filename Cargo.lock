@@ -198,7 +198,7 @@ checksum = "30bde2b3dc3671ae49d8e2e9f044c7c005836e7a023ee57cffa25ab82764bb9e"
 
 [[package]]
 name = "ltrait"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "async-stream",
  "async-trait",
@@ -206,7 +206,6 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tracing",
- "tracing-log",
  "tracing-subscriber",
 ]
 
