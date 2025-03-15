@@ -20,7 +20,6 @@ impl<Item, F> ClosureGenerator<Item, F>
 where
     F: Fn(&str) -> Vec<Item>,
 {
-    #[allow(dead_code)]
     pub fn new(f: F) -> Self {
         Self(f, std::marker::PhantomData)
     }

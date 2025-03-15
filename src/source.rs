@@ -2,7 +2,7 @@ use std::pin::Pin;
 
 pub type Source<'a, T> = Pin<Box<dyn tokio_stream::Stream<Item = T> + Send + 'a>>;
 
-fn from_iter<'a, T, Iter>(
+pub fn from_iter<'a, T, Iter>(
     iter: impl std::iter::IntoIterator<Item = T, IntoIter = Iter>,
 ) -> Source<'a, T>
 where

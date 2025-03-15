@@ -16,7 +16,6 @@ where
     F: Fn(&Context, &str) -> bool,
     Context: 'a,
 {
-    #[allow(dead_code)]
     pub fn new(f: F) -> Self {
         Self(f, std::marker::PhantomData)
     }
