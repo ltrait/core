@@ -15,8 +15,11 @@ pub mod ui;
 
 pub use crate::action::Action;
 pub use crate::filter::Filter;
+pub use crate::generator::Generator;
 pub use crate::launcher::Launcher;
 pub use crate::sorter::Sorter;
+pub use crate::source::Source;
+pub use crate::ui::UI;
 
 use color_eyre::eyre::Result;
 
