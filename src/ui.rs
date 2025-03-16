@@ -50,7 +50,8 @@ impl<T> Buffer<T> {
         self.vec.push(value);
     }
 
-    /// not iterator
+    /// Iterator can't return a type that borrows itself
+    #[allow(clippy::should_implement_trait)]
     pub fn next(&mut self) -> Option<&T> {
         self.pos += 1;
         self.vec.get(self.pos - 1)
