@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use std::marker::PhantomData;
 
 /// Generator is a kind of Source but it takes input.
 /// It is not envisaged that Generator will return a large number of items.
@@ -35,5 +36,50 @@ where
 
     async fn generate(&self, input: &str) -> Vec<Self::Item> {
         (self.0)(input)
+    }
+}
+
+pub struct GenWrapper<Item, GenT, F, Cusion>
+where
+    F: Fn(Item) -> Cusion,
+    GenT: Generator<Item = Item>,
+{
+    f: F,
+    generator: GenT,
+
+    _cusion: PhantomData<Cusion>,
+}
+
+#[async_trait]
+impl<Item, GenT, F, Cusion> Generator for GenWrapper<Item, GenT, F, Cusion>
+where
+    F: Fn(Item) -> Cusion + Sync,
+    GenT: Generator<Item = Item> + Sync,
+    Cusion: Sync,
+{
+    type Item = Cusion;
+
+    async fn generate(&self, input: &str) -> Vec<Self::Item> {
+        self.generator
+            .generate(input)
+            .await
+            .into_iter()
+            .map(|item| (self.f)(item)) // 直接self.fを渡すと参照のエラー
+            .collect()
+    }
+}
+
+impl<Item, GenT, F, Cusion> GenWrapper<Item, GenT, F, Cusion>
+where
+    F: Fn(Item) -> Cusion + Sync,
+    GenT: Generator<Item = Item> + Sync,
+    Cusion: Sync,
+{
+    pub fn new(generator: GenT, transformer: F) -> Self {
+        Self {
+            f: transformer,
+            generator,
+            _cusion: PhantomData,
+        }
     }
 }

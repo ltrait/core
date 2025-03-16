@@ -1,5 +1,7 @@
 // これはwrapはされるけどstreamの状態でfilterするわけではない
 // 本当はasyncのほうがいいかも?
+use std::marker::PhantomData;
+
 pub trait Filter<'a>: Send {
     type Context: 'a;
 
@@ -30,5 +32,51 @@ where
 
     fn predicate(&self, ctx: &Self::Context, input: &str) -> bool {
         (self.0)(ctx, input)
+    }
+}
+
+pub struct FilterWrapper<'a, FilterContext, FilterT, F, Cusion>
+where
+    F: Fn(&Cusion) -> FilterContext + Send + 'a,
+    FilterT: Filter<'a, Context = FilterContext>,
+    FilterContext: 'a,
+{
+    f: F,
+    filter: FilterT,
+
+    _filter_context: PhantomData<&'a FilterContext>,
+    _cusion: PhantomData<Cusion>,
+}
+
+impl<'a, FilterContext, FilterT, F, Cusion> Filter<'a>
+    for FilterWrapper<'a, FilterContext, FilterT, F, Cusion>
+where
+    F: Fn(&Cusion) -> FilterContext + Send + 'a,
+    FilterT: Filter<'a, Context = FilterContext>,
+    FilterContext: 'a + Sync,
+    Cusion: 'a + Send,
+{
+    type Context = Cusion;
+
+    fn predicate(&self, ctx: &Self::Context, input: &str) -> bool {
+        self.filter.predicate(&(self.f)(ctx), input)
+    }
+}
+
+impl<'a, FilterContext, FilterT, F, Cusion> FilterWrapper<'a, FilterContext, FilterT, F, Cusion>
+where
+    F: Fn(&Cusion) -> FilterContext + Send + 'a,
+    FilterT: Filter<'a, Context = FilterContext>,
+    FilterContext: 'a + Sync,
+    Cusion: 'a + Send,
+{
+    pub fn new(filter: FilterT, transformer: F) -> Self {
+        Self {
+            f: transformer,
+            filter,
+
+            _filter_context: PhantomData,
+            _cusion: PhantomData,
+        }
     }
 }

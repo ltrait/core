@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 pub trait Sorter<'a>: Send {
     type Context: 'a;
 
@@ -28,5 +30,50 @@ where
 
     fn compare(&self, lhs: &Self::Context, rhs: &Self::Context, input: &str) -> std::cmp::Ordering {
         (self.0)(lhs, rhs, input)
+    }
+}
+
+pub struct SorterWrapper<'a, SorterContext, SorterT, F, Cusion>
+where
+    F: Fn(&Cusion) -> SorterContext + Send + 'a,
+    SorterT: Sorter<'a, Context = SorterContext>,
+    SorterContext: 'a + Sync,
+{
+    f: F,
+    sorter: SorterT,
+
+    _sorter_context: PhantomData<&'a SorterContext>,
+    _cusion: PhantomData<Cusion>,
+}
+
+impl<'a, SorterContext, SorterT, F, Cusion> Sorter<'a>
+    for SorterWrapper<'a, SorterContext, SorterT, F, Cusion>
+where
+    F: Fn(&Cusion) -> SorterContext + Send + 'a,
+    SorterT: Sorter<'a, Context = SorterContext>,
+    SorterContext: 'a + Sync,
+    Cusion: 'a + Send,
+{
+    type Context = Cusion;
+
+    fn compare(&self, lhs: &Self::Context, rhs: &Self::Context, input: &str) -> std::cmp::Ordering {
+        (self.sorter).compare(&(self.f)(lhs), &(self.f)(rhs), input)
+    }
+}
+
+impl<'a, SorterContext, SorterT, F, Cusion> SorterWrapper<'a, SorterContext, SorterT, F, Cusion>
+where
+    F: Fn(&Cusion) -> SorterContext + Send + 'a,
+    SorterT: Sorter<'a, Context = SorterContext>,
+    SorterContext: 'a + Sync,
+    Cusion: 'a + Send,
+{
+    pub fn new(sorter: SorterT, transformer: F) -> Self {
+        Self {
+            f: transformer,
+            sorter,
+            _sorter_context: PhantomData,
+            _cusion: PhantomData,
+        }
     }
 }

@@ -7,8 +7,6 @@ use crate::source::Source;
 
 use crate::ui::Buffer;
 
-use std::marker::PhantomData;
-
 use tokio_stream::StreamExt as _;
 
 type CusionToUIF<'a, Cusion, UIContext> = Option<Box<dyn Fn(&Cusion) -> UIContext + Send + 'a>>;
@@ -73,8 +71,7 @@ struct BatcherState<Cusion> {
     source_index: usize,
 }
 
-use debug_state::*;
-
+#[cfg(debug_assertions)]
 mod debug_state {
     use super::BatcherState;
     use std::fmt;
@@ -306,221 +303,85 @@ where
         self.state.items_from_sources_i.reset();
     }
 
+    // そういえばSourceだけもともとBoxを求めてる(まあいいや)
     /// Add a source to `self`, builder
-    pub(super) fn add_source<SourceContext, F>(
-        &mut self,
-        source: Source<'a, SourceContext>,
-        transformer: F,
-    ) where
-        F: Fn(SourceContext) -> Cusion + Send + 'a,
-        SourceContext: 'a,
-    {
-        fn transform_source<'a, Cusion, SourceContext, F>(
-            source: Source<'a, SourceContext>,
-            f: F,
-        ) -> Source<'a, Cusion>
-        where
-            SourceContext: 'a,
-            F: Fn(SourceContext) -> Cusion + Send + 'a,
-        {
-            use tokio_stream::StreamExt as _;
-
-            Box::pin(source.map(f))
-        }
-
-        self.sources.push(transform_source(source, transformer));
+    pub(super) fn add_raw_source(&mut self, source: Source<'a, Cusion>) {
+        self.sources.push(source);
     }
 
-    pub(super) fn add_filter<FilterContext, FilterT, F>(&mut self, filter: FilterT, transformer: F)
+    pub(super) fn add_raw_filter<FilterT>(&mut self, filter: FilterT)
     where
-        F: Fn(&Cusion) -> FilterContext + Send + 'a,
-        FilterContext: 'a + Sync,
-        FilterT: Filter<'a, Context = FilterContext> + 'a,
-        Cusion: 'a,
+        FilterT: Filter<'a, Context = Cusion> + 'a,
     {
-        struct FilterWrapper<'a, FilterContext, FilterT, F, Cusion>
-        where
-            F: Fn(&Cusion) -> FilterContext + Send + 'a,
-            FilterT: Filter<'a, Context = FilterContext>,
-            FilterContext: 'a,
-        {
-            f: F,
-            filter: FilterT,
-
-            _filter_context: PhantomData<&'a FilterContext>,
-            _cusion: PhantomData<Cusion>,
-        }
-
-        impl<'a, FilterContext, FilterT, F, Cusion> Filter<'a>
-            for FilterWrapper<'a, FilterContext, FilterT, F, Cusion>
-        where
-            F: Fn(&Cusion) -> FilterContext + Send + 'a,
-            FilterT: Filter<'a, Context = FilterContext>,
-            FilterContext: 'a + Sync,
-            Cusion: 'a + Send,
-        {
-            type Context = Cusion;
-
-            fn predicate(&self, ctx: &Self::Context, input: &str) -> bool {
-                self.filter.predicate(&(self.f)(ctx), input)
-            }
-        }
-
-        self.filters.push(Box::new(FilterWrapper {
-            f: transformer,
-            filter,
-
-            _filter_context: PhantomData,
-            _cusion: PhantomData,
-        }));
+        self.filters.push(Box::new(filter));
     }
 
-    pub(super) fn add_sorter<SorterContext, SorterT, F>(&mut self, sorter: SorterT, transformer: F)
+    pub(super) fn add_raw_sorter<SorterT>(&mut self, sorter: SorterT)
     where
-        F: Fn(&Cusion) -> SorterContext + Send + 'a,
-        SorterContext: 'a + Sync,
-        SorterT: Sorter<'a, Context = SorterContext> + 'a,
-        Cusion: 'a + Send,
+        SorterT: Sorter<'a, Context = Cusion> + 'a,
     {
-        struct SorterWrapper<'a, SorterContext, SorterT, F, Cusion>
-        where
-            F: Fn(&Cusion) -> SorterContext + Send + 'a,
-            SorterT: Sorter<'a, Context = SorterContext>,
-            SorterContext: 'a + Sync,
-        {
-            f: F,
-            sorter: SorterT,
-
-            _sorter_context: PhantomData<&'a SorterContext>,
-            _cusion: PhantomData<Cusion>,
-        }
-
-        impl<'a, SorterContext, SorterT, F, Cusion> Sorter<'a>
-            for SorterWrapper<'a, SorterContext, SorterT, F, Cusion>
-        where
-            F: Fn(&Cusion) -> SorterContext + Send + 'a,
-            SorterT: Sorter<'a, Context = SorterContext>,
-            SorterContext: 'a + Sync,
-            Cusion: 'a + Send,
-        {
-            type Context = Cusion;
-
-            fn compare(
-                &self,
-                lhs: &Self::Context,
-                rhs: &Self::Context,
-                input: &str,
-            ) -> std::cmp::Ordering {
-                (self.sorter).compare(&(self.f)(lhs), &(self.f)(rhs), input)
-            }
-        }
-
-        self.sorters.push(Box::new(SorterWrapper {
-            f: transformer,
-            sorter,
-
-            _sorter_context: PhantomData,
-            _cusion: PhantomData,
-        }));
+        self.sorters.push(Box::new(sorter));
     }
 
-    pub(super) fn add_generator<Item, GenT, F>(&mut self, generator: GenT, transformer: F)
+    pub(super) fn add_raw_generator<GenT>(&mut self, generator: GenT)
     where
-        Item: 'a,
-        F: Fn(Item) -> Cusion + Sync + Send + 'a,
-        GenT: Generator<Item = Item> + Sync + Send + 'a,
-        Cusion: Sync + 'a,
+        GenT: Generator<Item = Cusion> + Sync + Send + 'a,
     {
-        struct GenWrapper<Item, GenT, F, Cusion>
-        where
-            F: Fn(Item) -> Cusion,
-            GenT: Generator<Item = Item>,
-        {
-            f: F,
-            generator: GenT,
-
-            _cusion: PhantomData<Cusion>,
-        }
-
-        #[async_trait::async_trait]
-        impl<Item, GenT, F, Cusion> Generator for GenWrapper<Item, GenT, F, Cusion>
-        where
-            F: Fn(Item) -> Cusion + Sync,
-            GenT: Generator<Item = Item> + Sync,
-            Cusion: Sync,
-        {
-            type Item = Cusion;
-
-            async fn generate(&self, input: &str) -> Vec<Self::Item> {
-                self.generator
-                    .generate(input)
-                    .await
-                    .into_iter()
-                    .map(|item| (self.f)(item)) // 直接self.fを渡すと参照のエラー
-                    .collect()
-            }
-        }
-
-        self.generators.push(Box::new(GenWrapper {
-            f: transformer,
-            generator,
-            _cusion: PhantomData,
-        }));
+        self.generators.push(Box::new(generator));
     }
 }
 
 #[cfg(test)]
 mod tests {
-    // use super::*;
+    use super::*;
 
-    // #[test]
-    // fn add_source() -> Result<(), Box<dyn std::error::Error>> {
-    //     let mut batcher = Batcher::default();
-    //
-    //     batcher.add_source(Box::pin(tokio_stream::iter(vec![1, 2])), |x| x);
-    //
-    //     assert_eq!(batcher.sources.len(), 1);
-    //
-    //     Ok(())
-    // }
-    //
-    // #[test]
-    // fn add_filter() -> Result<(), Box<dyn std::error::Error>> {
-    //     let mut batcher = Batcher::default();
-    //
-    //     batcher.add_filter(
-    //         crate::filter::ClosureFilter::new(|&x: &i32, input| x == 0i32 && input == ""),
-    //         |x| *x,
-    //     );
-    //
-    //     assert_eq!(batcher.filters.len(), 1);
-    //
-    //     Ok(())
-    // }
-    //
-    // #[test]
-    // fn add_sorter() -> Result<(), Box<dyn std::error::Error>> {
-    //     let mut batcher = Batcher::default();
-    //     batcher.add_sorter(
-    //         crate::sorter::ClosureSorter::new(|lhs: &i32, rhs, _| lhs.cmp(rhs)),
-    //         |x| *x,
-    //     );
-    //
-    //     assert_eq!(batcher.sorters.len(), 1);
-    //
-    //     Ok(())
-    // }
-    //
-    // #[test]
-    // fn add_action() -> Result<(), Box<dyn std::error::Error>> {
-    //     let mut batcher = Batcher::default();
-    //     batcher.add_action(
-    //         crate::action::ClosureAction::new(|x: i32| println!("{x}")),
-    //         |x: &i32| *x,
-    //     );
-    //
-    //     assert_eq!(batcher.actions.len(), 1);
-    //
-    //     Ok(())
-    // }
+    #[test]
+    fn add_source() -> Result<(), Box<dyn std::error::Error>> {
+        let mut batcher: Batcher<'_, i32, ()> = Batcher::default();
+
+        batcher.add_raw_source(Box::pin(tokio_stream::iter(vec![1, 2])));
+
+        assert_eq!(batcher.sources.len(), 1);
+
+        Ok(())
+    }
+
+    #[test]
+    fn add_filter() -> Result<(), Box<dyn std::error::Error>> {
+        let mut batcher: Batcher<'_, i32, ()> = Batcher::default();
+
+        batcher.add_raw_filter(crate::filter::ClosureFilter::new(|&x: &i32, input| {
+            x == 0i32 && input == ""
+        }));
+
+        assert_eq!(batcher.filters.len(), 1);
+
+        Ok(())
+    }
+
+    #[test]
+    fn add_sorter() -> Result<(), Box<dyn std::error::Error>> {
+        let mut batcher: Batcher<'_, i32, ()> = Batcher::default();
+
+        batcher.add_raw_sorter(crate::sorter::ClosureSorter::new(|lhs: &i32, rhs, _| {
+            lhs.cmp(rhs)
+        }));
+
+        assert_eq!(batcher.sorters.len(), 1);
+
+        Ok(())
+    }
+
+    #[test]
+    fn add_generator() -> Result<(), Box<dyn std::error::Error>> {
+        let mut batcher: Batcher<'_, (), ()> = Batcher::default();
+        batcher.add_raw_generator(crate::generator::ClosureGenerator::new(|input| {
+            println!("{input}");
+            vec![]
+        }));
+
+        assert_eq!(batcher.generators.len(), 1);
+
+        Ok(())
+    }
 }

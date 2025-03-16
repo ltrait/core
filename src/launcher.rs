@@ -1,13 +1,11 @@
-use std::marker::PhantomData;
+use color_eyre::eyre::{OptionExt, Result};
 
-use color_eyre::eyre::Result;
-
-use crate::action::Action;
-use crate::filter::Filter;
-use crate::generator::Generator;
+use crate::action::{Action, ActionWrapper};
+use crate::filter::{Filter, FilterWrapper};
+use crate::generator::{GenWrapper, Generator};
 use crate::launcher::batcher::Batcher;
-use crate::sorter::Sorter;
-use crate::source::Source;
+use crate::sorter::{Sorter, SorterWrapper};
+use crate::source::{Source, transform_source};
 use crate::ui::UI;
 
 pub mod batcher;
@@ -38,6 +36,13 @@ where
         }
     }
 }
+
+/// The add_** functions essentially act as syntactic sugar; they call a Wrapper
+/// first and then call the add_raw_ functions. For typical use cases, it is
+/// preferable to use the add_** (the non-raw version). However, when using
+/// types that further wrap the Wrapper (which are planned to be added in
+/// ltrait-extra), it may be more appropriate to use add_raw_.
+///
 /// note: use functions such as
 ///
 /// * `std::convert::identity`
@@ -51,7 +56,7 @@ where
     Cusion: 'a + Send + Sync,
 {
     pub fn add_source<SourceContext, F>(
-        mut self,
+        self,
         source: Source<'a, SourceContext>,
         transformer: F,
     ) -> Self
@@ -59,84 +64,64 @@ where
         F: Fn(SourceContext) -> Cusion + Send + 'a,
         SourceContext: 'a,
     {
-        self.batcher.add_source(source, transformer);
+        self.add_raw_source(transform_source(source, transformer))
+    }
+
+    pub fn add_raw_source(mut self, source: Source<'a, Cusion>) -> Self {
+        self.batcher.add_raw_source(source);
         self
     }
 
-    pub fn add_filter<FilterContext, FilterT, F>(mut self, filter: FilterT, transformer: F) -> Self
+    pub fn add_filter<FilterContext, FilterT, F>(self, filter: FilterT, transformer: F) -> Self
     where
         F: Fn(&Cusion) -> FilterContext + Send + 'a,
         FilterContext: 'a + Sync,
         FilterT: Filter<'a, Context = FilterContext> + 'a,
     {
-        self.batcher.add_filter(filter, transformer);
+        self.add_raw_filter(FilterWrapper::new(filter, transformer))
+    }
+
+    pub fn add_raw_filter<FilterT>(mut self, filter: FilterT) -> Self
+    where
+        FilterT: Filter<'a, Context = Cusion> + 'a,
+    {
+        self.batcher.add_raw_filter(filter);
         self
     }
 
-    pub fn add_sorter<SorterContext, SorterT, F>(mut self, sorter: SorterT, transformer: F) -> Self
+    pub fn add_sorter<SorterContext, SorterT, F>(self, sorter: SorterT, transformer: F) -> Self
     where
         F: Fn(&Cusion) -> SorterContext + Send + 'a,
         SorterContext: 'a + Sync,
         SorterT: Sorter<'a, Context = SorterContext> + 'a,
         Cusion: 'a + Send,
     {
-        self.batcher.add_sorter(sorter, transformer);
+        self.add_raw_sorter(SorterWrapper::new(sorter, transformer))
+    }
 
+    pub fn add_raw_sorter<SorterT>(mut self, sorter: SorterT) -> Self
+    where
+        SorterT: Sorter<'a, Context = Cusion> + 'a,
+    {
+        self.batcher.add_raw_sorter(sorter);
         self
     }
 
-    pub fn add_action<ActionContext, ActionT, F>(mut self, action: ActionT, transformer: F) -> Self
+    pub fn add_action<ActionContext, ActionT, F>(self, action: ActionT, transformer: F) -> Self
     where
         F: Fn(&Cusion) -> ActionContext + Send + 'a,
         ActionT: Action<'a, Context = ActionContext> + 'a,
         ActionContext: 'a,
         Cusion: 'a + Sync,
     {
-        struct ActionWrapper<'a, ActionContext, ActionT, F, Cusion>
-        where
-            F: Fn(&Cusion) -> ActionContext + Send + 'a,
-            ActionT: Action<'a, Context = ActionContext>,
-            ActionContext: 'a,
-            Cusion: 'a + Sync,
-        {
-            f: F,
-            action: ActionT,
+        self.add_raw_action(ActionWrapper::new(action, transformer))
+    }
 
-            _cusion: PhantomData<&'a Cusion>,
-        }
-
-        impl<'a, ActionContext, ActionT, F, Cusion> ActionWrapper<'a, ActionContext, ActionT, F, Cusion>
-        where
-            F: Fn(&Cusion) -> ActionContext + Send + 'a,
-            ActionT: Action<'a, Context = ActionContext>,
-            ActionContext: 'a,
-            Cusion: 'a + Sync,
-        {
-            fn new(action: ActionT, transformer: F) -> Self {
-                Self {
-                    f: transformer,
-                    action,
-                    _cusion: PhantomData,
-                }
-            }
-        }
-
-        impl<'a, ActionContext, ActionT, F, Cusion> Action<'a>
-            for ActionWrapper<'a, ActionContext, ActionT, F, Cusion>
-        where
-            F: Fn(&Cusion) -> ActionContext + Send + 'a,
-            ActionT: Action<'a, Context = ActionContext>,
-            ActionContext: 'a,
-            Cusion: 'a + std::marker::Sync,
-        {
-            type Context = Cusion;
-
-            fn act(&self, ctx: &Self::Context) -> Result<()> {
-                self.action.act(&(self.f)(ctx))
-            }
-        }
-        self.actions
-            .push(Box::new(ActionWrapper::new(action, transformer)));
+    pub fn add_raw_action<ActionT>(mut self, action: ActionT) -> Self
+    where
+        ActionT: Action<'a, Context = Cusion> + 'a,
+    {
+        self.actions.push(Box::new(action));
 
         self
     }
@@ -150,19 +135,30 @@ where
         self
     }
 
-    pub fn add_generator<Item, GenT, F>(mut self, generator: GenT, transformer: F) -> Self
+    pub fn add_generator<Item, GenT, F>(self, generator: GenT, transformer: F) -> Self
     where
         Item: 'a,
         F: Fn(Item) -> Cusion + Sync + Send + 'a,
         GenT: Generator<Item = Item> + Sync + Send + 'a,
         Cusion: Sync + 'a,
     {
-        self.batcher.add_generator(generator, transformer);
+        self.add_raw_generator(GenWrapper::new(generator, transformer))
+    }
+
+    pub(super) fn add_raw_generator<GenT>(mut self, generator: GenT) -> Self
+    where
+        GenT: Generator<Item = Cusion> + Sync + Send + 'a,
+    {
+        self.batcher.add_raw_generator(generator);
         self
     }
 
     pub async fn run(self) -> Result<()> {
-        let cusion: Cusion = self.ui.unwrap().run(self.batcher).await?;
+        let cusion: Cusion = self
+            .ui
+            .ok_or_eyre("UI must be set before calling run")?
+            .run(self.batcher)
+            .await?;
 
         for ai in self.actions {
             ai.act(&cusion)?;
