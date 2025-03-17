@@ -130,7 +130,7 @@ where
         Ok(self.state.items.swap_remove(id))
     }
 
-    fn sorterf(&self) -> impl Fn(&usize, &usize) -> std::cmp::Ordering {
+    fn create_sorter(&self) -> impl Fn(&usize, &usize) -> std::cmp::Ordering {
         |lhs, rhs| {
             use std::cmp::Ordering::*;
 
@@ -236,7 +236,7 @@ where
             })
             .collect();
 
-        v.sort_by(self.sorterf());
+        v.sort_by(self.create_sorter());
 
         v.into()
     }
@@ -273,7 +273,7 @@ where
             let mut next_src = iter_src.next();
 
             while let (Some(a), Some(b)) = (next_dst.as_ref(), next_src.as_ref()) {
-                if self.sorterf()(&a.1, b) != std::cmp::Ordering::Greater {
+                if self.create_sorter()(&a.1, b) != std::cmp::Ordering::Greater {
                     merged.push(next_dst.take().unwrap());
                     next_dst = iter_dst.next();
                 } else {
