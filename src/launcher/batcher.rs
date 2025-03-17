@@ -267,7 +267,7 @@ where
             let mut merged = Vec::with_capacity(dst_owned.len() + v.len());
 
             let mut iter_dst = dst_owned.into_iter();
-            let mut iter_src = v.iter_mut();
+            let mut iter_src = v.iter();
 
             let mut next_dst = iter_dst.next();
             let mut next_src = iter_src.next();
