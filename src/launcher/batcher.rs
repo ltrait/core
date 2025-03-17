@@ -153,6 +153,14 @@ where
 
     // ここのusizeはself.state.itemsのindex
     // あとからmergeで比較しつつmergeして、最後にcusion_to_uiで(UIContext, usize)に変換される
+
+    /// Prepares the next batch of indices for rendering.
+    ///
+    /// This asynchronous function generates and returns a `Buffer<usize>` containing indices
+    /// that correspond to UI elements needing rendering. The resulting buffer is intended to be used
+    /// in conjunction with a rendering buffer of type `Buffer<(UIContext, usize)>` during the merge process.
+    ///
+    /// For optimal performance, it is recommended that this function runs concurrently with the rendering process.
     pub async fn prepare(&mut self) -> Buffer<usize> {
         let mut batch_count = if self.batch_size == 0 {
             usize::MAX
@@ -241,9 +249,20 @@ where
         v.into()
     }
 
-    /// Takes a buffer and merges items (UIContext) into it.
+    /// Merges UI context data into the rendering buffer.
     ///
-    /// Returns a boolean indicating whether there are items that have not yet been fully acquired.
+    /// This asynchronous function accepts two buffers:
+    /// - `buf`: A mutable reference to a `Buffer<(UIContext, usize)>` used for UI rendering.
+    /// - `from`: A `Buffer<usize>` produced by `prepare` containing corresponding indices.
+    ///
+    /// The function associates each index from `from` with its respective UI context and inserts
+    /// the resulting pairs into `buf`. It returns a `Result<bool>`, where the boolean indicates whether
+    /// there remain items that have not been fully processed.
+    ///
+    /// Note:
+    /// Both the preparation and merge operations are relatively time-consuming. To minimize rendering delays,
+    /// it is recommended that the preparation and rendering processes are executed concurrently (for example, in separate
+    /// threads or processes), while the merge operation should be performed in a synchronized manner.
     pub async fn merge(
         &mut self,
         buf: &mut Buffer<(UIContext, usize)>,
