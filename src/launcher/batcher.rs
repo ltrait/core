@@ -5,7 +5,7 @@ use crate::generator::Generator;
 use crate::sorter::Sorter;
 use crate::source::Source;
 
-use crate::ui::Buffer;
+use crate::ui::{Buffer, Position};
 
 use tokio_stream::StreamExt as _;
 
@@ -60,7 +60,7 @@ struct BatcherState<Cusion> {
     items: Vec<Cusion>,
 
     // index of items
-    items_from_sources_i: Buffer<usize>,
+    items_from_sources_i: (Buffer<usize>, Position),
 
     peeked_item: Option<Cusion>,
     // 本当に最初にsourceからitemを取得するときにまだ取得してpeeked_itemに入っていないだけなのに
@@ -109,7 +109,7 @@ impl<Cusion> Default for BatcherState<Cusion> {
             first_source: true,
             peeked_item: None,
             items: vec![],
-            items_from_sources_i: Buffer::default(),
+            items_from_sources_i: (Buffer::default(), Position::default()),
         }
     }
 }
@@ -134,7 +134,11 @@ where
     /// Returns that whether there are items that have not yet been fully acquired(bool)
     ///
     /// This reset the position of buffer
-    pub async fn merge(&mut self, buf: &mut Buffer<(UIContext, usize)>) -> Result<bool>
+    pub async fn merge(
+        &mut self,
+        buf: &mut Buffer<(UIContext, usize)>,
+        pos: &mut Position,
+    ) -> Result<bool>
     where
         Cusion: 'a,
     {
@@ -143,7 +147,7 @@ where
             "Cusion to UIContext did not set. Did you set UI?(This error is probably not called because of the way Rust works!)"
         );
 
-        buf.reset_pos();
+        pos.reset();
 
         let mut batch_count = if self.batch_size == 0 {
             usize::MAX
@@ -185,6 +189,7 @@ where
                     v.push(self.state.items.len() - 1);
                     self.state
                         .items_from_sources_i
+                        .0
                         .push(self.state.items.len() - 1);
                 } else if !self.state.first_source {
                     self.state.source_index += 1;
@@ -199,7 +204,12 @@ where
                 // dbg!(&self.state);
 
                 self.state.peeked_item = self.sources[self.state.source_index].next().await;
-            } else if let Some(ci) = self.state.items_from_sources_i.next() {
+            } else if let Some(ci) = self
+                .state
+                .items_from_sources_i
+                .0
+                .next(&mut self.state.items_from_sources_i.1)
+            {
                 v.push(*ci);
             } else {
                 break;
@@ -300,7 +310,7 @@ where
     pub fn input(&mut self, buf: &mut Buffer<(UIContext, usize)>, input: &str) {
         self.state.input = input.into();
         buf.reset();
-        self.state.items_from_sources_i.reset();
+        self.state.items_from_sources_i.1.reset();
     }
 
     // そういえばSourceだけもともとBoxを求めてる(まあいいや)
