@@ -279,10 +279,10 @@ where
                 } else {
                     merged.push({
                         let ui_ctx = (self.cusion_to_ui.as_ref().unwrap())(
-                            &self.state.items[**next_src.as_ref().unwrap()],
+                            &self.state.items[*next_src.unwrap()],
                         );
 
-                        (ui_ctx, **next_src.as_ref().unwrap())
+                        (ui_ctx, *next_src.unwrap())
                     });
                     next_src = iter_src.next();
                 }
