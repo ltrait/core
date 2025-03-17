@@ -241,10 +241,9 @@ where
         v.into()
     }
 
-    /// Take Buffer and merge Items(UIContext) into the Buffer
-    /// Returns that whether there are items that have not yet been fully acquired(bool)
+    /// Takes a buffer and merges items (UIContext) into it.
     ///
-    /// This reset the position of buffer
+    /// Returns a boolean indicating whether there are items that have not yet been fully acquired.
     pub async fn merge(
         &mut self,
         buf: &mut Buffer<(UIContext, usize)>,
