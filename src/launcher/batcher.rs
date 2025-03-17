@@ -278,6 +278,8 @@ where
 
         let v = from.as_mut();
 
+        let sorterf = self.create_sorter();
+
         {
             let dst = buf.as_mut();
 
@@ -291,7 +293,7 @@ where
             let mut next_src = iter_src.next();
 
             while let (Some(a), Some(b)) = (next_dst.as_ref(), next_src.as_ref()) {
-                if self.create_sorter()(&a.1, b) != std::cmp::Ordering::Greater {
+                if sorterf(&a.1, b) != std::cmp::Ordering::Greater {
                     merged.push(next_dst.take().unwrap());
                     next_dst = iter_dst.next();
                 } else {
