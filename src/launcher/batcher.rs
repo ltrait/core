@@ -116,7 +116,7 @@ impl<Cusion> Default for BatcherState<Cusion> {
 
 impl<'a, Cusion, UIContext> Batcher<'a, Cusion, UIContext>
 where
-    Cusion: std::marker::Send,
+    Cusion: std::marker::Send + 'a,
 {
     /// Consumes (and destroys) the current instance, returning ownership of the `Cusion`.
     ///
@@ -130,19 +130,30 @@ where
         Ok(self.state.items.swap_remove(id))
     }
 
-    /// Take Buffer and merge Items(UIContext) into the Buffer
-    /// Returns that whether there are items that have not yet been fully acquired(bool)
-    ///
-    /// This reset the position of buffer
-    pub async fn merge(&mut self, buf: &mut Buffer<(UIContext, usize)>) -> Result<bool>
-    where
-        Cusion: 'a,
-    {
-        ensure!(
-            self.cusion_to_ui.is_some(),
-            "Cusion to UIContext did not set. Did you set UI?(This error is probably not called because of the way Rust works!)"
-        );
+    fn sorterf(&self) -> impl Fn(&usize, &usize) -> std::cmp::Ordering {
+        |lhs, rhs| {
+            use std::cmp::Ordering::*;
 
+            let lhs = &self.state.items[*lhs];
+            let rhs = &self.state.items[*rhs];
+            for si in &self.sorters {
+                match si.compare(lhs, rhs, &self.state.input) {
+                    Equal => {
+                        continue;
+                    }
+                    ord => {
+                        return ord;
+                    }
+                }
+            }
+
+            Equal
+        }
+    }
+
+    // ここのusizeはself.state.itemsのindex
+    // あとからmergeで比較しつつmergeして、最後にcusion_to_uiで(UIContext, usize)に変換される
+    pub async fn prepare(&mut self) -> Buffer<usize> {
         let mut batch_count = if self.batch_size == 0 {
             usize::MAX
         } else {
@@ -225,26 +236,29 @@ where
             })
             .collect();
 
+        v.sort_by(self.sorterf());
+        todo!()
+        // From<Vec<T>> for Buffer<T>がいるそれでvを変換すれば良さそう
+    }
+
+    /// Take Buffer and merge Items(UIContext) into the Buffer
+    /// Returns that whether there are items that have not yet been fully acquired(bool)
+    ///
+    /// This reset the position of buffer
+    pub async fn merge(
+        &mut self,
+        buf: &mut Buffer<(UIContext, usize)>,
+        mut from: Buffer<usize>,
+    ) -> Result<bool> {
+        ensure!(
+            self.cusion_to_ui.is_some(),
+            "Cusion to UIContext did not set. Did you set UI?(This error is probably not called because of the way Rust works!)"
+        );
+
         // sorterは順番に適用していくのと、逆にしてstd::Ordering::Equalが出たら次のやつを参照するっていうのが同義っぽいきがする
         // どっちにするかだけど、std::Ordering::Equalが出たら戻るほうが(ここでは逆にしたりしない)計算量が少なそう
 
-        let sorterf = |lhs: &Cusion, rhs: &Cusion| {
-            use std::cmp::Ordering::*;
-            for si in &self.sorters {
-                match si.compare(lhs, rhs, &self.state.input) {
-                    Equal => {
-                        continue;
-                    }
-                    ord => {
-                        return ord;
-                    }
-                }
-            }
-
-            Equal
-        };
-
-        v.sort_by(|lhs, rhs| sorterf(&self.state.items[*lhs], &self.state.items[*rhs]));
+        let v = from.as_mut();
 
         {
             let dst = buf.as_mut();
@@ -253,25 +267,22 @@ where
             let mut merged = Vec::with_capacity(dst_owned.len() + v.len());
 
             let mut iter_dst = dst_owned.into_iter();
-            let mut iter_src = v.into_iter();
+            let mut iter_src = v.iter_mut();
 
             let mut next_dst = iter_dst.next();
             let mut next_src = iter_src.next();
 
             while let (Some(a), Some(b)) = (next_dst.as_ref(), next_src.as_ref()) {
-                if sorterf(&self.state.items[a.1], &self.state.items[*b])
-                    != std::cmp::Ordering::Greater
-                {
+                if self.sorterf()(&a.1, b) != std::cmp::Ordering::Greater {
                     merged.push(next_dst.take().unwrap());
                     next_dst = iter_dst.next();
                 } else {
                     merged.push({
-                        // まず、self.state.itemsにpushしてそれのindexとtupleにする
                         let ui_ctx = (self.cusion_to_ui.as_ref().unwrap())(
-                            &self.state.items[*next_src.as_ref().unwrap()],
+                            &self.state.items[**next_src.as_ref().unwrap()],
                         );
 
-                        (ui_ctx, *next_src.as_ref().unwrap())
+                        (ui_ctx, **next_src.as_ref().unwrap())
                     });
                     next_src = iter_src.next();
                 }
@@ -283,14 +294,14 @@ where
             }
             if let Some(val) = next_src {
                 merged.push({
-                    let ui_ctx = (self.cusion_to_ui.as_ref().unwrap())(&self.state.items[val]);
+                    let ui_ctx = (self.cusion_to_ui.as_ref().unwrap())(&self.state.items[*val]);
 
-                    (ui_ctx, val)
+                    (ui_ctx, *val)
                 });
                 merged.extend(iter_src.map(|ci| {
-                    let ui_ctx = (self.cusion_to_ui.as_ref().unwrap())(&self.state.items[ci]);
+                    let ui_ctx = (self.cusion_to_ui.as_ref().unwrap())(&self.state.items[*ci]);
 
-                    (ui_ctx, ci)
+                    (ui_ctx, *ci)
                 }));
             }
 
