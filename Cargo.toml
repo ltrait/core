@@ -10,6 +10,8 @@ documentation = "https://docs.rs/ltrait/"
 homepage = "https://crates.io/crates/ltrait"
 repository = "https://github.com/ltrait/core"
 
+exclude = [".envrc"]
+
 license = "MIT"
 
 [dependencies]
