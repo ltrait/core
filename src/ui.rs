@@ -14,6 +14,12 @@ pub struct Buffer<T> {
     vec: Vec<T>,
 }
 
+impl<T> From<Vec<T>> for Buffer<T> {
+    fn from(vec: Vec<T>) -> Self {
+        Self { vec }
+    }
+}
+
 #[derive(Debug, Default, Clone, Copy)]
 pub struct Position(usize);
 
