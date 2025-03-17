@@ -237,8 +237,8 @@ where
             .collect();
 
         v.sort_by(self.sorterf());
-        todo!()
-        // From<Vec<T>> for Buffer<T>がいるそれでvを変換すれば良さそう
+
+        v.into()
     }
 
     /// Take Buffer and merge Items(UIContext) into the Buffer
