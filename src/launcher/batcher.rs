@@ -134,11 +134,7 @@ where
     /// Returns that whether there are items that have not yet been fully acquired(bool)
     ///
     /// This reset the position of buffer
-    pub async fn merge(
-        &mut self,
-        buf: &mut Buffer<(UIContext, usize)>,
-        pos: &mut Position,
-    ) -> Result<bool>
+    pub async fn merge(&mut self, buf: &mut Buffer<(UIContext, usize)>) -> Result<bool>
     where
         Cusion: 'a,
     {
@@ -146,8 +142,6 @@ where
             self.cusion_to_ui.is_some(),
             "Cusion to UIContext did not set. Did you set UI?(This error is probably not called because of the way Rust works!)"
         );
-
-        pos.reset();
 
         let mut batch_count = if self.batch_size == 0 {
             usize::MAX
@@ -310,6 +304,8 @@ where
     pub fn input(&mut self, buf: &mut Buffer<(UIContext, usize)>, input: &str) {
         self.state.input = input.into();
         buf.reset();
+
+        // Positionだけリセット。元(Positionを分けるまえ)のコードにはバグがあって(多分)全部払い出したあとにinputすると変になってた
         self.state.items_from_sources_i.1.reset();
     }
 
