@@ -31,5 +31,25 @@
           cargo-nextest
         ];
       };
+
+      packages = rec {
+        ci = pkgs.buildEnv {
+          name = "ci";
+          paths = with pkgs; [
+            rust-bin
+
+            cargo-nextest
+            typos
+          ];
+        };
+        review = pkgs.buildEnv {
+          name = "ci";
+          paths = with pkgs; [
+            ci
+
+            reviewdog
+          ];
+        };
+      };
     };
 }
