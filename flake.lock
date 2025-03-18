@@ -1,5 +1,21 @@
 {
   "nodes": {
+    "clippy-reviewdog-filter-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1714915026,
+        "narHash": "sha256-W4rKeaXKxn9MBCDv57OPkuK/fGb6M7SzfYsgj0IYd14=",
+        "owner": "qnighy",
+        "repo": "clippy-reviewdog-filter",
+        "rev": "375e34bc425407c0f41bba274878072771ac6591",
+        "type": "github"
+      },
+      "original": {
+        "owner": "qnighy",
+        "repo": "clippy-reviewdog-filter",
+        "type": "github"
+      }
+    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1740367490,
@@ -18,6 +34,7 @@
     },
     "root": {
       "inputs": {
+        "clippy-reviewdog-filter-src": "clippy-reviewdog-filter-src",
         "nixpkgs": "nixpkgs",
         "rust-overlay": "rust-overlay"
       }
