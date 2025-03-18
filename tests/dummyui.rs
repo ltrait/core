@@ -50,15 +50,15 @@ where
         }
 
         let mut pos = Position::default();
-        let mut ikkoha = false;
+        let mut least_one = false;
         while let Some(&(ref c, _)) = buf.next(&mut pos) {
             (self.f)(c);
-            if !ikkoha {
-                ikkoha = true;
+            if !least_one {
+                least_one = true;
             }
         }
 
-        ensure!(ikkoha, "No items were processed by the UI"); // Ensure at least one item was processed
+        ensure!(least_one, "No items were processed by the UI"); // Ensure at least one item was processed
 
         batcher.compute_cusion(0)
     }
