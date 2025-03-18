@@ -28,6 +28,8 @@ jobs:
       # TODO: install bencher via nix, ref: https://github.com/NixOS/nixpkgs/issues/390884
       - uses: bencherdev/bencher@6e6215a69dae0f1088183cc8a14ea8609259f1b0
 
+      - uses: Swatinem/rust-cache@v2
+
       - run: >
           bencher run
           --project ltrait-core

@@ -26,6 +26,8 @@ jobs:
 
       - run: nix profile install .#review
 
+      - uses: Swatinem/rust-cache@v2
+
       - name: cargo-clippy
         run: >
           cargo clippy --message-format=json 2>&1

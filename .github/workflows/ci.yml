@@ -23,6 +23,8 @@ jobs:
 
       - run: nix profile install .#ci
 
+      - uses: Swatinem/rust-cache@v2
+
       - run: cargo clippy --all-features -- -D warnings
       - name: Spell Check Repo
         run: typos .
@@ -42,6 +44,8 @@ jobs:
           package: .#ci
 
       - run: nix profile install .#ci
+
+      - uses: Swatinem/rust-cache@v2
 
       - run: cargo nextest run
       - run: cargo test --doc
