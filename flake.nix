@@ -57,6 +57,9 @@
 
             cargo-nextest
             typos
+
+            # bench
+            gnuplot
           ];
         };
         review = pkgs.buildEnv {
