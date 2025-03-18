@@ -121,6 +121,7 @@ where
     /// Consumes (and destroys) the current instance, returning ownership of the `Cusion`.
     ///
     /// Call this function as the final step to retrieve the `Cusion`.
+    #[inline(always)]
     pub fn compute_cusion(mut self, id: usize) -> Result<Cusion> {
         ensure!(
             self.state.items.len() > id,
@@ -130,6 +131,7 @@ where
         Ok(self.state.items.swap_remove(id))
     }
 
+    #[inline(always)]
     fn create_sorter(&self) -> impl Fn(&usize, &usize) -> std::cmp::Ordering {
         |lhs, rhs| {
             use std::cmp::Ordering::*;
@@ -161,6 +163,7 @@ where
     /// in conjunction with a rendering buffer of type `Buffer<(UIContext, usize)>` during the merge process.
     ///
     /// For optimal performance, it is recommended that this function runs concurrently with the rendering process.
+    #[must_use]
     pub async fn prepare(&mut self) -> Buffer<usize> {
         let mut batch_count = if self.batch_size == 0 {
             usize::MAX
