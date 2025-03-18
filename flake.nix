@@ -32,7 +32,7 @@
 
         src = inputs.clippy-reviewdog-filter-src;
 
-        cargoHash = "sha256-jtBw4ahSl88L0iuCXxQgZVm1EcboWRJMNtjxLVTtzts=";
+        cargoHash = "sha256-pGkpgwCNXxKzoWuRIUSgXCJ2+PzrvD8voxtkDvWIazc=";
       };
     in
     {
