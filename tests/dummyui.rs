@@ -58,8 +58,7 @@ where
             }
         }
 
-        // 本当はcompute_cusionの中でもエラーハンドリングしているから大丈夫なんだけど決め打ちしてるしわかりやすいから
-        ensure!(ikkoha, "いっこも渡されなかった");
+        ensure!(ikkoha, "No items were processed by the UI"); // Ensure at least one item was processed
 
         batcher.compute_cusion(0)
     }
