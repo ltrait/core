@@ -1,0 +1,38 @@
+name: Review with reviewdog
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  review:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Nix
+        uses: cachix/install-nix-action@02a151ada4993995686f9ed4f1be7cfbb229e56f
+      - run: nix profile install .#review
+      - name: cargo-clippy
+        run: >
+          cargo clippy --message-format=json 2>&1
+          | clippy-reviewdog-filter
+          | reviewdog -f=checkstyle -reporter="github-pr-check"
+          -name="cargo-clippy"
+        env:
+          REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.github_token }}
+      - name: download jq script
+        run: >
+          curl -o ../to-rdjsonl.jq
+          https://raw.githubusercontent.com/reviewdog/action-typos/9e768c4fb1e84e0c3283790e61a736a4bebd30eb/to-rdjsonl.jq
+      - name: typos
+        run: >
+          typos --format json
+          | jq -f "../to-rdjsonl.jq" -c
+          | clippy-reviewdog-filter
+          | reviewdog -f=checkstyle -reporter="github-pr-check" -tee
+          -name="typos"
+        env:
+          REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.github_token }}
