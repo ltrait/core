@@ -1,0 +1,38 @@
+name: Benchmark
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  bench:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+    permissions:
+      checks: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Nix
+        uses: cachix/install-nix-action@02a151ada4993995686f9ed4f1be7cfbb229e56f
+
+      - name: Restore binary cache
+        uses: asa1984/infra/.github/actions/binary-cache@44165003348ea3578a66f8c879bfaf23a3c7cc18
+        with:
+          package: .#ci
+
+      - run: nix profile install .#ci
+      # TODO: install bencher via nix, ref: https://github.com/NixOS/nixpkgs/issues/390884
+      - uses: bencherdev/bencher@6e6215a69dae0f1088183cc8a14ea8609259f1b0
+
+      - run: >
+          bencher run
+          --project ltrait-core
+          --token '${{ secrets.BENCHER_SECRET }}'
+          --github-actions '${{ secrets.GITHUB_TOKEN }}'
+          --branch main
+          --adapter rust_criterion
+          "cargo bench"
