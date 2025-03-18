@@ -67,7 +67,7 @@ fn simple_source(c: &mut Criterion) {
 }
 
 fn simple_filter(c: &mut Criterion) {
-    c.bench_function("50,000 Items, batch_size = 1000, 3 filters", |b| {
+    c.bench_function("500,000 Items, batch_size = 1000, 3 filters", |b| {
         b.to_async(Runtime::new().unwrap())
             .iter(|| simple_filter_a());
     });
