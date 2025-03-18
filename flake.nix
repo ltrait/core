@@ -43,6 +43,9 @@
           rust-bin
 
           cargo-nextest
+
+          # bench
+          gnuplot
         ];
       };
 
