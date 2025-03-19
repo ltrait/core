@@ -199,6 +199,7 @@ where
                 .iter()
                 .map(|r#gen| async {
                     let cusions = r#gen.generate(&self.state.input).await.into_iter();
+                    // 最終結果で計算が終わったあとの長さにしか興味がないからRelaxedで問題ない
                     len.fetch_add(cusions.len(), Ordering::Relaxed);
                     cusions
                 });
