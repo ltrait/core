@@ -164,6 +164,7 @@ where
     ///
     /// For optimal performance, it is recommended that this function runs concurrently with the rendering process.
     #[must_use]
+    #[inline]
     pub async fn prepare(&mut self) -> Buffer<usize> {
         let mut batch_count = if self.batch_size == 0 {
             usize::MAX
@@ -171,25 +172,35 @@ where
             self.batch_size
         };
 
-        // Vec<Cusion>
+        // Vec<usize(id self.state.items)>
         // 最後に(UIContext, usize)に変換してmargeする
-        let mut v = vec![];
+        let mut v = {
+            let estimated_capacity = if self.batch_size == 0 {
+                256
+            } else {
+                batch_count
+            };
+            self.state.items.reserve(estimated_capacity);
+            Vec::with_capacity(estimated_capacity)
+        };
 
         while batch_count != 0 {
             if self.state.gen_index < self.generators.len() {
-                let cusions_from_gen: Vec<_> = self.generators[self.state.gen_index]
+                let cusions_from_gen = self.generators[self.state.gen_index]
                     .generate(&self.state.input)
                     .await
-                    .into_iter()
-                    .map(|c| {
-                        self.state.items.push(c);
-                        self.state.items.len() - 1
-                    })
-                    .collect();
+                    .into_iter();
 
                 let len = cusions_from_gen.len();
 
-                v.extend(cusions_from_gen);
+                v.reserve(len);
+                for c in cusions_from_gen {
+                    {
+                        let index = self.state.items.len();
+                        self.state.items.push(c);
+                        v.push(index);
+                    }
+                }
 
                 if batch_count < len {
                     batch_count = 0;
