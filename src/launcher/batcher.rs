@@ -13,7 +13,7 @@ type CusionToUIF<'a, Cusion, UIContext> = Option<Box<dyn Fn(&Cusion) -> UIContex
 
 type FilterT<'a, Cusion> = Box<dyn Filter<'a, Context = Cusion> + Send + 'a>;
 type SorterT<'a, Cusion> = Box<dyn Sorter<'a, Context = Cusion> + Send + 'a>;
-type GenT<'a, Cusion> = Box<dyn Generator<Item = Cusion> + Send + 'a>;
+type GenT<'a, Cusion> = Box<dyn Generator<Item = Cusion> + Send + Sync + 'a>;
 
 pub struct Batcher<'a, Cusion, UIContext> {
     filters: Vec<FilterT<'a, Cusion>>,
@@ -164,6 +164,7 @@ where
     ///
     /// For optimal performance, it is recommended that this function runs concurrently with the rendering process.
     #[must_use]
+    #[inline]
     pub async fn prepare(&mut self) -> Buffer<usize> {
         let mut batch_count = if self.batch_size == 0 {
             usize::MAX
@@ -171,34 +172,62 @@ where
             self.batch_size
         };
 
-        // Vec<Cusion>
+        // Vec<usize(id self.state.items)>
         // 最後に(UIContext, usize)に変換してmargeする
-        let mut v = vec![];
+        let mut v = {
+            let estimated_capacity = if self.batch_size == 0 {
+                256
+            } else {
+                batch_count
+            };
+            self.state.items.reserve(estimated_capacity);
+            Vec::with_capacity(estimated_capacity)
+        };
+
+        let gen_len = self.generators.len();
+        if self.state.gen_index < gen_len && batch_count > 0 {
+            use std::sync::atomic::{AtomicUsize, Ordering};
+
+            let len = AtomicUsize::new(0);
+
+            let gen_count_to_run = batch_count.min(gen_len - self.state.gen_index);
+
+            // Iterator<Item = impl Future<Output = Vec<Cusion>>>
+            // でjoin_allでFutureを解決して
+            let cusions_from_gen = self.generators
+                [self.state.gen_index..(self.state.gen_index + gen_count_to_run)]
+                .iter()
+                .map(|r#gen| async {
+                    let cusions = r#gen.generate(&self.state.input).await.into_iter();
+                    // 最終結果で計算が終わったあとの長さにしか興味がないからRelaxedで問題ない
+                    len.fetch_add(cusions.len(), Ordering::Relaxed);
+                    cusions
+                });
+
+            let cusions_from_gen = futures::future::join_all(cusions_from_gen)
+                .await
+                .into_iter()
+                .flatten();
+
+            v.reserve(len.load(Ordering::SeqCst));
+            for c in cusions_from_gen {
+                let index = self.state.items.len();
+                self.state.items.push(c);
+                v.push(index);
+            }
+
+            if batch_count < gen_count_to_run {
+                batch_count = 0;
+            } else {
+                // カウントして減らすこともできるけど流石にドキュメントするのも大変
+                batch_count -= gen_count_to_run
+            }
+
+            self.state.gen_index += gen_count_to_run;
+        }
 
         while batch_count != 0 {
-            if self.state.gen_index < self.generators.len() {
-                let cusions_from_gen: Vec<_> = self.generators[self.state.gen_index]
-                    .generate(&self.state.input)
-                    .await
-                    .into_iter()
-                    .map(|c| {
-                        self.state.items.push(c);
-                        self.state.items.len() - 1
-                    })
-                    .collect();
-
-                let len = cusions_from_gen.len();
-
-                v.extend(cusions_from_gen);
-
-                if batch_count < len {
-                    batch_count = 0;
-                } else {
-                    batch_count -= len
-                }
-
-                self.state.gen_index += 1;
-            } else if self.state.source_index < self.sources.len() {
+            if self.state.source_index < self.sources.len() {
                 if let Some(cusion) = self.state.peeked_item.take() {
                     batch_count -= 1;
                     self.state.items.push(cusion);
@@ -337,6 +366,7 @@ where
     /// Accepts user input, resets the internal state, and initiates processing of a new batch.
     pub fn input(&mut self, buf: &mut Buffer<(UIContext, usize)>, input: &str) {
         self.state.input = input.into();
+        self.state.gen_index = 0;
         buf.reset();
 
         // Positionだけリセット。元(Positionを分けるまえ)のコードにはバグがあって(多分)全部払い出したあとにinputすると変になってた
