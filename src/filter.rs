@@ -2,7 +2,7 @@
 // 本当はasyncのほうがいいかも?
 use std::marker::PhantomData;
 
-pub trait Filter<'a>: Send {
+pub trait Filter<'a>: Send + 'a {
     type Context: 'a;
 
     fn predicate(&self, ctx: &Self::Context, input: &str) -> bool;
@@ -25,7 +25,7 @@ where
 
 impl<'a, Context, F> Filter<'a> for ClosureFilter<'a, Context, F>
 where
-    F: Fn(&Context, &str) -> bool + Send,
+    F: Fn(&Context, &str) -> bool + Send + 'a,
     Context: 'a + Sync,
 {
     type Context = Context;

@@ -11,9 +11,9 @@ use tokio_stream::StreamExt as _;
 
 type CusionToUIF<'a, Cusion, UIContext> = Option<Box<dyn Fn(&Cusion) -> UIContext + Send + 'a>>;
 
-type FilterT<'a, Cusion> = Box<dyn Filter<'a, Context = Cusion> + Send + 'a>;
-type SorterT<'a, Cusion> = Box<dyn Sorter<'a, Context = Cusion> + Send + 'a>;
-type GenT<'a, Cusion> = Box<dyn Generator<Item = Cusion> + Send + Sync + 'a>;
+type FilterT<'a, Cusion> = Box<dyn Filter<'a, Context = Cusion>>;
+type SorterT<'a, Cusion> = Box<dyn Sorter<'a, Context = Cusion>>;
+type GenT<'a, Cusion> = Box<dyn Generator<Item = Cusion> + 'a>;
 
 pub struct Batcher<'a, Cusion, UIContext> {
     filters: Vec<FilterT<'a, Cusion>>,

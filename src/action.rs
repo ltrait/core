@@ -1,30 +1,30 @@
 use color_eyre::Result;
 use std::marker::PhantomData;
 
-pub trait Action<'a>: std::marker::Send {
+pub trait Action<'a>: Send + 'a {
     type Context: 'a;
 
     fn act(&self, ctx: &Self::Context) -> Result<()>;
 }
 
-pub struct ClosureAction<'a, Context, F>(F, std::marker::PhantomData<&'a Context>)
+pub struct ClosureAction<'a, Context, F>(F, PhantomData<&'a Context>)
 where
-    F: Fn(&Context) -> Result<()>,
-    Context: 'a;
+    F: Fn(&Context) -> Result<()> + Send + 'a,
+    Context: 'a + Sync;
 
 impl<'a, Context, F> ClosureAction<'a, Context, F>
 where
-    F: Fn(&Context) -> Result<()>,
-    Context: 'a,
+    F: Fn(&Context) -> Result<()> + Send + 'a,
+    Context: 'a + Sync,
 {
     pub fn new(f: F) -> Self {
-        Self(f, std::marker::PhantomData)
+        Self(f, PhantomData)
     }
 }
 
 impl<'a, Context, F> Action<'a> for ClosureAction<'a, Context, F>
 where
-    F: Fn(&Context) -> Result<()> + Send,
+    F: Fn(&Context) -> Result<()> + Send + 'a,
     Context: 'a + Sync,
 {
     type Context = Context;
@@ -53,7 +53,7 @@ where
     F: Fn(&Cusion) -> ActionContext + Send + 'a,
     ActionT: Action<'a, Context = ActionContext>,
     ActionContext: 'a,
-    Cusion: 'a + std::marker::Sync,
+    Cusion: 'a + Sync,
 {
     type Context = Cusion;
 

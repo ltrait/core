@@ -12,13 +12,13 @@ pub mod batcher;
 
 pub struct Launcher<'a, Cusion, UIT, UIContext>
 where
-    UIT: UI<'a, Context = UIContext> + 'a,
+    UIT: UI<'a, Context = UIContext>,
     UIContext: 'a + Send,
     Cusion: 'a + Sync,
 {
     batcher: Batcher<'a, Cusion, UIContext>,
 
-    actions: Vec<Box<dyn Action<'a, Context = Cusion> + 'a>>,
+    actions: Vec<Box<dyn Action<'a, Context = Cusion>>>,
     ui: Option<UIT>,
 }
 

@@ -6,7 +6,7 @@ use std::marker::PhantomData;
 ///
 /// Generator can be used to implement a calculator (that needs a user input).
 #[async_trait]
-pub trait Generator {
+pub trait Generator: Send + Sync {
     type Item;
 
     // 本当は短くて比較的意味が伝わりやすいgenが良かったんだけど予約語
@@ -29,8 +29,8 @@ where
 #[async_trait]
 impl<Item, F> Generator for ClosureGenerator<Item, F>
 where
-    F: Fn(&str) -> Vec<Item> + Sync,
-    Item: Sync,
+    F: Fn(&str) -> Vec<Item> + Sync + Send,
+    Item: Sync + Send,
 {
     type Item = Item;
 
@@ -41,8 +41,9 @@ where
 
 pub struct GenWrapper<Item, GenT, F, Cusion>
 where
-    F: Fn(Item) -> Cusion,
-    GenT: Generator<Item = Item>,
+    F: Fn(Item) -> Cusion + Sync + Send,
+    GenT: Generator<Item = Item> + Sync,
+    Cusion: Sync + Send,
 {
     f: F,
     generator: GenT,
@@ -53,9 +54,9 @@ where
 #[async_trait]
 impl<Item, GenT, F, Cusion> Generator for GenWrapper<Item, GenT, F, Cusion>
 where
-    F: Fn(Item) -> Cusion + Sync,
+    F: Fn(Item) -> Cusion + Sync + Send,
     GenT: Generator<Item = Item> + Sync,
-    Cusion: Sync,
+    Cusion: Sync + Send,
 {
     type Item = Cusion;
 
@@ -71,9 +72,9 @@ where
 
 impl<Item, GenT, F, Cusion> GenWrapper<Item, GenT, F, Cusion>
 where
-    F: Fn(Item) -> Cusion + Sync,
+    F: Fn(Item) -> Cusion + Sync + Send,
     GenT: Generator<Item = Item> + Sync,
-    Cusion: Sync,
+    Cusion: Sync + Send,
 {
     pub fn new(generator: GenT, transformer: F) -> Self {
         Self {
