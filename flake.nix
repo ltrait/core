@@ -63,7 +63,7 @@
           ];
         };
         review = pkgs.buildEnv {
-          name = "ci";
+          name = "review";
           paths = with pkgs; [
             ci
 
