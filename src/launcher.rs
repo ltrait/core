@@ -175,13 +175,21 @@ where
         self
     }
 
-    /// A batch refers to the process of retrieving items from a source (or any other source) and sorting the filtered items.
-    /// For performance reasons, the number of items retrieved in a single batch may be limited based on the count of items before filtering.
+    /// A batch represents the process of retrieving items from all available sources and sorting the filtered items
+    /// according to user-specified sorters.
     ///
-    /// If a generator returns more items than the specified `batch_size`, all items will be added in one batch,
-    /// without retaining the extras for subsequent batches.
+    /// For performance reasons, the number of items retrieved in a single batch is capped based on the pre-filter count.
+    /// The `batch_size` parameter sets this upper limit.
     ///
-    /// If `batch_size` is set to 0, all items are retrieved and displayed in one batch.
+    /// Note that `batch_size` is determined heuristically and may require tuning for optimal performance; it is recommended
+    /// to experiment with different values.
+    ///
+    /// In most cases, both the source (which returns one item per evaluation) and the generator (which can return multiple items)
+    /// contribute to the running count of items in a batch. However, if the final evaluation in a batch comes from a generator
+    /// that returns more items than needed to reach the specified limit, all of those items are added to the batch,
+    /// potentially exceeding the `batch_size`. The extra items are not saved for subsequent batches.
+    ///
+    /// When `batch_size` is set to 0, there is no upper limit, and all items are retrieved and processed in a single batch.
     /// The default value is 0.
     pub fn batch_size(mut self, batch_size: usize) -> Self {
         self.batcher.batch_size = batch_size;
