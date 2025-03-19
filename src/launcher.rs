@@ -184,10 +184,11 @@ where
     /// Note that `batch_size` is determined heuristically and may require tuning for optimal performance; it is recommended
     /// to experiment with different values.
     ///
-    /// In most cases, both the source (which returns one item per evaluation) and the generator (which can return multiple items)
-    /// contribute to the running count of items in a batch. However, if the final evaluation in a batch comes from a generator
-    /// that returns more items than needed to reach the specified limit, all of those items are added to the batch,
-    /// potentially exceeding the `batch_size`. The extra items are not saved for subsequent batches.
+    /// In most cases, both the source (which returns one item per evaluation) and the generator (which, with the updated
+    /// specification, counts as one evaluation regardless of how many items it returns) contribute to the running count of
+    /// items in a batch. However, if a generator evaluation returns more items than needed to reach the specified limit,
+    /// all of those items are added to the batch, potentially exceeding the `batch_size`. The extra items are not saved
+    /// for subsequent batches.
     ///
     /// When `batch_size` is set to 0, there is no upper limit, and all items are retrieved and processed in a single batch.
     /// The default value is 0.
