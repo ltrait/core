@@ -36,33 +36,40 @@ impl<T> Default for Buffer<T> {
 }
 
 impl<T> Buffer<T> {
+    #[inline]
     pub(crate) fn reset(&mut self) {
         *self = Self::default();
     }
 
+    #[inline]
     pub(crate) fn as_mut(&mut self) -> &mut Vec<T> {
         &mut self.vec
     }
 
+    #[inline]
     pub fn len(&self) -> usize {
         self.vec.len()
     }
 
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.vec.is_empty()
     }
 
+    #[inline]
     pub fn push(&mut self, value: T) {
         self.vec.push(value);
     }
 
     /// Iterator can't return a type that borrows itself
     #[allow(clippy::should_implement_trait)]
+    #[inline]
     pub fn next(&mut self, pos: &mut Position) -> Option<&T> {
         pos.0 += 1;
         self.vec.get(pos.0 - 1)
     }
 
+    #[inline]
     pub fn has_next(&self, pos: &Position) -> bool {
         pos.0 + 1 < self.len()
     }
