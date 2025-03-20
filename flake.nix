@@ -21,6 +21,52 @@
         inherit system;
         overlays = [
           inputs.rust-overlay.overlays.default
+          (self: super: {
+            # TODO: waiting for https://github.com/NixOS/nixpkgs/pull/391472
+            # HACK:
+            cargo-codspeed = super.rustPlatform.buildRustPackage rec {
+              pname = "cargo-codspeed";
+              version = "2.9.1";
+
+              src = super.fetchFromGitHub {
+                owner = "CodSpeedHQ";
+                repo = "codspeed-rust";
+                rev = "v${version}";
+                hash = "sha256-q5xsZ8KHuC/Qm+o4xcWbW9Y9VrxHZ+/AxUO8TYEbE74=";
+              };
+
+              useFetchCargoVendor = true;
+              cargoHash = "sha256-Ance7Hfl0EOmMfZf3ZqvawrK7scot7WpefLtemHKb+U=";
+
+              nativeBuildInputs = with super; [
+                curl
+                pkg-config
+              ];
+
+              buildInputs =
+                with super;
+                [
+                  curl
+                  libgit2
+                  openssl
+                  zlib
+                ]
+                ++ lib.optionals stdenv.hostPlatform.isDarwin [
+                  darwin.apple_sdk.frameworks.Security
+                ];
+
+              cargoBuildFlags = [ "-p=cargo-codspeed" ];
+              cargoTestFlags = cargoBuildFlags;
+              checkFlags = [
+                # requires an extra dependency, blit
+                "--skip=test_package_in_deps_build"
+              ];
+
+              env = {
+                LIBGIT2_NO_VENDOR = 1;
+              };
+            };
+          })
         ];
       };
 
@@ -49,7 +95,7 @@
         ];
       };
 
-      packages.${system} = rec {
+      packages.${system} = {
         ci = pkgs.buildEnv {
           name = "ci";
           paths = with pkgs; [
@@ -60,12 +106,16 @@
 
             # bench
             gnuplot
+            cargo-codspeed
           ];
         };
         review = pkgs.buildEnv {
           name = "review";
           paths = with pkgs; [
-            ci
+            rust-bin
+
+            cargo-nextest
+            typos
 
             reviewdog
 
