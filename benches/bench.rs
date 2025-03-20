@@ -68,6 +68,19 @@ async fn simple_sorter_a() -> Result<()> {
     Ok(())
 }
 
+async fn three_sources_a() -> Result<()> {
+    let launcher = Launcher::default()
+        .add_source(from_iter(0..black_box(150_000)), identity)
+        .add_source(from_iter(0..black_box(150_000)), identity)
+        .add_source(from_iter(0..black_box(150_000)), identity)
+        .batch_size(10_000)
+        .set_ui(DummyUI::new(|_: &()| {}), |_| ());
+
+    launcher.run().await?;
+
+    Ok(())
+}
+
 fn simple_source(c: &mut Criterion) {
     c.bench_function("500,000 Items, batch_size = 10,000", |b| {
         b.to_async(Runtime::new().unwrap())
@@ -89,5 +102,18 @@ fn simple_sorter(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, simple_source, simple_filter, simple_sorter);
+fn three_sources(c: &mut Criterion) {
+    c.bench_function("450,000 Items, batch_size = 10,000, 3 sources", |b| {
+        b.to_async(Runtime::new().unwrap())
+            .iter(|| three_sources_a());
+    });
+}
+
+criterion_group!(
+    benches,
+    simple_source,
+    simple_filter,
+    simple_sorter,
+    three_sources,
+);
 criterion_main!(benches);
