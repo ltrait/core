@@ -60,6 +60,7 @@
 
             # bench
             gnuplot
+            cargo-codspeed
           ];
         };
         review = pkgs.buildEnv {

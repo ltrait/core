@@ -13,7 +13,7 @@ use tokio::runtime::Runtime;
 
 async fn simple_source_a() -> Result<()> {
     let launcher = Launcher::default()
-        .add_source(from_iter(0..500_000), identity)
+        .add_source(from_iter(0..black_box(500_000)), identity)
         .batch_size(10_000)
         .set_ui(DummyUI::new(|_: &()| {}), |_| ());
 
@@ -24,7 +24,7 @@ async fn simple_source_a() -> Result<()> {
 
 async fn simple_filter_a() -> Result<()> {
     let launcher = Launcher::default()
-        .add_source(from_iter(0..500_000), identity)
+        .add_source(from_iter(0..black_box(500_000)), identity)
         .batch_size(10_000)
         .add_filter(
             ClosureFilter::new(|_: &i32, _| black_box(true)),
@@ -47,7 +47,7 @@ async fn simple_filter_a() -> Result<()> {
 
 async fn simple_sorter_a() -> Result<()> {
     let launcher = Launcher::default()
-        .add_source(from_iter(0..500_000), identity)
+        .add_source(from_iter(0..black_box(500_000)), identity)
         .batch_size(10_000)
         .add_sorter(
             ClosureSorter::new(|_: &i32, _: &i32, _| black_box(std::cmp::Ordering::Equal)),

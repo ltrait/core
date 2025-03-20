@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+  pull_request:
   workflow_dispatch:
 
 jobs:
@@ -25,16 +26,13 @@ jobs:
           package: .#ci
 
       - run: nix profile install .#ci
-      # TODO: install bencher via nix, ref: https://github.com/NixOS/nixpkgs/issues/390884
-      - uses: bencherdev/bencher@6e6215a69dae0f1088183cc8a14ea8609259f1b0
 
       - uses: Swatinem/rust-cache@v2
 
-      - run: >
-          bencher run
-          --project ltrait-core
-          --token '${{ secrets.BENCHER_SECRET }}'
-          --github-actions '${{ secrets.GITHUB_TOKEN }}'
-          --branch main
-          --adapter rust_criterion
-          "cargo bench"
+      - run: cargo codspeed build
+
+      - name: Run the benchmarks
+        uses: CodSpeedHQ/action@0010eb0ca6e89b80c88e8edaaa07cfe5f3e6664d
+        with:
+          run: cargo codspeed run
+          token: ${{ secrets.CODSPEED_TOKEN }}
