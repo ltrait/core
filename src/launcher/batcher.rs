@@ -227,7 +227,14 @@ where
         }
 
         while batch_count != 0 {
-            if self.state.source_index < self.sources.len() {
+            if let Some(ci) = self
+                .state
+                .items_from_sources_i
+                .0
+                .next(&mut self.state.items_from_sources_i.1)
+            {
+                v.push(*ci);
+            } else if self.state.source_index < self.sources.len() {
                 if let Some(cusion) = self.state.peeked_item.take() {
                     batch_count -= 1;
                     self.state.items.push(cusion);
@@ -249,13 +256,6 @@ where
                 // dbg!(&self.state);
 
                 self.state.peeked_item = self.sources[self.state.source_index].next().await;
-            } else if let Some(ci) = self
-                .state
-                .items_from_sources_i
-                .0
-                .next(&mut self.state.items_from_sources_i.1)
-            {
-                v.push(*ci);
             } else {
                 break;
             }
