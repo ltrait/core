@@ -19,7 +19,8 @@ pub struct Batcher<'a, Cusion, UIContext> {
     filters: Vec<FilterT<'a, Cusion>>,
     sorters: Vec<SorterT<'a, Cusion>>,
     generators: Vec<GenT<'a, Cusion>>,
-    sources: Vec<Source<'a, Cusion>>,
+    // sources: Vec<Source<'a, Cusion>>,
+    source: Option<Source<'a, Cusion>>,
 
     pub(super) filter_and: bool,
 
@@ -38,7 +39,7 @@ where
         Self {
             filters: vec![],
             sorters: vec![],
-            sources: vec![],
+            source: None,
             generators: vec![],
 
             batch_size: 0,
@@ -63,12 +64,11 @@ struct BatcherState<Cusion> {
     items_from_sources_i: (Buffer<usize>, Position),
 
     peeked_item: Option<Cusion>,
-    // 本当に最初にsourceからitemを取得するときにまだ取得してpeeked_itemに入っていないだけなのに
-    // source_indexを一つ上げてしまって最初のsourceがsourceされなくなるからひつよう
+
     first_source: bool,
 
     gen_index: usize,
-    source_index: usize,
+    sourced_all: bool,
 }
 
 #[cfg(debug_assertions)]
@@ -94,7 +94,7 @@ mod debug_state {
                 .field("peeked_item", &peeked_info)
                 .field("first_source", &self.first_source)
                 .field("gen_index", &self.gen_index)
-                .field("source_index", &self.source_index)
+                .field("sourced_all", &self.sourced_all)
                 .finish()
         }
     }
@@ -105,8 +105,8 @@ impl<Cusion> Default for BatcherState<Cusion> {
         Self {
             input: "".into(),
             gen_index: 0,
-            source_index: 0,
             first_source: true,
+            sourced_all: false,
             peeked_item: None,
             items: vec![],
             items_from_sources_i: (Buffer::default(), Position::default()),
@@ -227,7 +227,7 @@ where
         }
 
         while batch_count != 0 {
-            if self.state.source_index < self.sources.len() {
+            if !self.state.sourced_all && self.source.is_some() {
                 if let Some(cusion) = self.state.peeked_item.take() {
                     batch_count -= 1;
                     self.state.items.push(cusion);
@@ -237,18 +237,13 @@ where
                         .0
                         .push(self.state.items.len() - 1);
                 } else if !self.state.first_source {
-                    self.state.source_index += 1;
-                    if self.state.source_index == self.sources.len() {
-                        break;
-                    }
+                    self.state.sourced_all = true;
+                    break;
                 } else {
-                    // 初めての場合はpeeked_itemにいれるけど
                     self.state.first_source = false;
                 }
 
-                // dbg!(&self.state);
-
-                self.state.peeked_item = self.sources[self.state.source_index].next().await;
+                self.state.peeked_item = self.source.as_mut().unwrap().next().await;
             } else if let Some(ci) = self
                 .state
                 .items_from_sources_i
@@ -376,7 +371,15 @@ where
     // そういえばSourceだけもともとBoxを求めてる(まあいいや)
     /// Add a source to `self`, builder
     pub(super) fn add_raw_source(&mut self, source: Source<'a, Cusion>) {
-        self.sources.push(source);
+        if self.source.is_some() {
+            // Chainを使うと少し遅くなるかも?
+            self.source = self
+                .source
+                .take()
+                .map(|s| Box::pin(s.chain(source)) as Source<'a, Cusion>);
+        } else {
+            self.source = Some(source);
+        }
     }
 
     pub(super) fn add_raw_filter<FilterT>(&mut self, filter: FilterT)
@@ -411,7 +414,7 @@ mod tests {
 
         batcher.add_raw_source(Box::pin(tokio_stream::iter(vec![1, 2])));
 
-        assert_eq!(batcher.sources.len(), 1);
+        assert!(batcher.source.is_some());
 
         Ok(())
     }
