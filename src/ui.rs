@@ -64,7 +64,7 @@ impl<T> Buffer<T> {
     /// Iterator can't return a type that borrows itself
     #[allow(clippy::should_implement_trait)]
     #[inline]
-    pub fn next(&mut self, pos: &mut Position) -> Option<&T> {
+    pub fn next(&self, pos: &mut Position) -> Option<&T> {
         pos.0 += 1;
         self.vec.get(pos.0 - 1)
     }
