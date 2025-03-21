@@ -27,6 +27,10 @@ impl Position {
     pub fn reset(&mut self) {
         self.0 = 0;
     }
+
+    pub fn from_i(pos: usize) -> Self {
+        Self(pos)
+    }
 }
 
 impl<T> Default for Buffer<T> {
