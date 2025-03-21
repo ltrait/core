@@ -21,15 +21,11 @@ impl<T> From<Vec<T>> for Buffer<T> {
 }
 
 #[derive(Debug, Default, Clone, Copy)]
-pub struct Position(usize);
+pub struct Position(pub usize);
 
 impl Position {
     pub fn reset(&mut self) {
         self.0 = 0;
-    }
-
-    pub fn from_i(pos: usize) -> Self {
-        Self(pos)
     }
 }
 
