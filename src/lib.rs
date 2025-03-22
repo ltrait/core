@@ -28,7 +28,7 @@ fn init_subscriber_with_level(level: Level) -> Result<()> {
     use tracing_subscriber::fmt::format::FmtSpan;
 
     fn db_dir() -> Option<std::path::PathBuf> {
-        let path = dirs::data_dir().map(|p| p.join("ltrait/log"));
+        let path = dirs::cache_dir().map(|p| p.join("ltrait/log"));
 
         if let Some(parent) = path.as_ref().and_then(|p| p.parent()) {
             std::fs::create_dir_all(parent).ok()?;
