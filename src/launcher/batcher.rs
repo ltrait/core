@@ -1,5 +1,7 @@
 use color_eyre::eyre::{Result, ensure};
 
+use tracing::{debug, info};
+
 use crate::filter::Filter;
 use crate::generator::Generator;
 use crate::sorter::Sorter;
@@ -71,7 +73,6 @@ struct BatcherState<Cusion> {
     source_index: usize,
 }
 
-#[cfg(debug_assertions)]
 mod debug_state {
     use super::BatcherState;
     use std::fmt;
@@ -166,6 +167,8 @@ where
     #[must_use]
     #[inline]
     pub async fn prepare(&mut self) -> Buffer<usize> {
+        info!("Preparing");
+        debug!("state on prepare {:?}", self.state);
         let mut batch_count = if self.batch_size == 0 {
             usize::MAX
         } else {
@@ -304,6 +307,7 @@ where
             self.cusion_to_ui.is_some(),
             "Cusion to UIContext did not set. Did you set UI?(This error is probably not called because of the way Rust works!)"
         );
+        debug!("state on merge: {:?}", self.state);
 
         // sorterは順番に適用していくのと、逆にしてstd::Ordering::Equalが出たら次のやつを参照するっていうのが同義っぽいきがする
         // どっちにするかだけど、std::Ordering::Equalが出たら戻るほうが(ここでは逆にしたりしない)計算量が少なそう
