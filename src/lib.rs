@@ -45,6 +45,7 @@ fn init_subscriber_with_level(level: Level) -> Result<tracing_appender::non_bloc
 
     tracing_subscriber::fmt()
         .with_writer(non_blocking)
+        .with_ansi(false)
         .with_max_level(level) // set recorded log level
         .with_span_events(FmtSpan::ACTIVE) // enable record span timing
         .init();
