@@ -145,7 +145,7 @@ where
                         continue;
                     }
                     ord => {
-                        return ord;
+                        return ord.reverse();
                     }
                 }
             }
