@@ -24,7 +24,7 @@ pub use crate::ui::UI;
 use color_eyre::eyre::{OptionExt, Result};
 
 #[cfg(feature = "log")]
-fn init_subscriber_with_level(level: Level) -> Result<()> {
+fn init_subscriber_with_level(level: Level) -> Result<tracing_appender::non_blocking::WorkerGuard> {
     use tracing_subscriber::fmt::format::FmtSpan;
 
     fn db_dir() -> Option<std::path::PathBuf> {
@@ -41,7 +41,7 @@ fn init_subscriber_with_level(level: Level) -> Result<()> {
         db_dir().ok_or_eyre("failed to get log dir")?,
         "core.log",
     );
-    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+    let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
 
     tracing_subscriber::fmt()
         .with_writer(non_blocking)
@@ -49,16 +49,16 @@ fn init_subscriber_with_level(level: Level) -> Result<()> {
         .with_span_events(FmtSpan::ACTIVE) // enable record span timing
         .init();
 
-    Ok(())
+    Ok(guard)
 }
 
 /// Install color_eyre and setup tracing(with tracing-log)
 /// ```
 /// use ltrait::{Level, setup};
 ///
-/// let _ = setup(Level::TRACE);
+/// let _guard = setup(Level::TRACE);
 /// ```
-pub fn setup(log_level: Level) -> Result<()> {
+pub fn setup(log_level: Level) -> Result<tracing_appender::non_blocking::WorkerGuard> {
     color_eyre::install()?;
 
     #[cfg(feature = "log")]
