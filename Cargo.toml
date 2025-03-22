@@ -17,10 +17,15 @@ license = "MIT"
 [dependencies]
 async-trait = "0.1.86"
 color-eyre = "0.6.3"
+dirs = "6.0.0"
 futures = "0.3.31"
 tokio-stream = "0.1.17"
-tracing = "0.1.41"
-tracing-subscriber = { version = "0.3.19", features = ["local-time"] }
+
+tracing = { version = "0.1.41" }
+tracing-appender = { version = "0.2.3", optional = true }
+tracing-subscriber = { version = "0.3.19", features = [
+  "local-time",
+], optional = true }
 
 [dev-dependencies]
 async-stream = "0.3.6"
@@ -30,6 +35,10 @@ criterion = { version = "2.9.1", package = "codspeed-criterion-compat", features
   "async_tokio",
   "tokio",
 ] }
+
+[features]
+default = ["log"]
+log = ["dep:tracing-appender", "dep:tracing-subscriber"]
 
 [[bench]]
 name = "bench"
