@@ -154,14 +154,16 @@ where
     }
 
     pub async fn run(self) -> Result<()> {
-        let cusion: Cusion = self
+        let cusion: Option<Cusion> = self
             .ui
             .ok_or_eyre("UI must be set before calling run")?
             .run(self.batcher)
             .await?;
 
-        for ai in self.actions {
-            ai.act(&cusion)?;
+        if let Some(cusion) = cusion {
+            for ai in self.actions {
+                ai.act(&cusion)?;
+            }
         }
 
         Ok(())

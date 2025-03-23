@@ -40,7 +40,7 @@ where
     async fn run<Cusion: 'a + Send>(
         &self,
         mut batcher: Batcher<'a, Cusion, Self::Context>,
-    ) -> Result<Cusion> {
+    ) -> Result<Option<Cusion>> {
         let mut more = true;
         let mut buf: Buffer<(T, usize)> = Buffer::default();
 
@@ -58,8 +58,10 @@ where
             }
         }
 
-        ensure!(least_one, "No items were processed by the UI"); // Ensure at least one item was processed
-
-        batcher.compute_cusion(0)
+        if least_one {
+            Ok(Some(batcher.compute_cusion(0)?))
+        } else {
+            Ok(None)
+        }
     }
 }

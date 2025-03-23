@@ -6,7 +6,7 @@ pub trait UI<'a> {
     fn run<Cusion: 'a + Send>(
         &self,
         batcher: crate::launcher::batcher::Batcher<'a, Cusion, Self::Context>,
-    ) -> impl std::future::Future<Output = Result<Cusion>> + Send;
+    ) -> impl std::future::Future<Output = Result<Option<Cusion>>> + Send;
 }
 
 #[derive(Debug, Clone)]
@@ -82,7 +82,7 @@ mod tests {
     #[test]
     fn test_buffer() -> Result<(), Box<dyn std::error::Error>> {
         let mut pos = Position::default();
-        let mut buf = {
+        let buf = {
             let mut buf = Buffer::default();
             let v = buf.as_mut();
             v.push((1, 1));
