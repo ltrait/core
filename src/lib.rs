@@ -1,3 +1,5 @@
+#![doc = include_str!("../docs/Concepts.md")]
+
 pub use async_trait;
 pub use color_eyre;
 pub use tokio_stream;
