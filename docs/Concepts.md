@@ -185,13 +185,10 @@ async fn main() -> Result<()> {
                 _ => true, // If variants are added to Item in the future, they are ignored here
             }
         }))
+        .reverse_sorter(false)
         .add_raw_sorter(ClosureSorter::new(|lhs, rhs, _| {
             match (lhs, rhs) {
-                // In default, the Launcher evaluates so that the larger ones are brought to the front,
-                // but here the smaller ones are brought to the front.
-                //
-                // I'll make it configurable soon.
-                (Item::Num(lhs), Item::Num(rhs)) => rhs.cmp(lhs),
+                (Item::Num(lhs), Item::Num(rhs)) => lhs.cmp(rhs),
                 _ => cmp::Ordering::Equal
             }
         }))
