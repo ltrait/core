@@ -23,11 +23,11 @@ pub struct Batcher<'a, Cusion, UIContext> {
     generators: Vec<GenT<'a, Cusion>>,
     sources: Vec<Source<'a, Cusion>>,
 
-    pub(super) filter_and: bool,
-
     pub(super) cusion_to_ui: CusionToUIF<'a, Cusion, UIContext>,
 
     pub(super) batch_size: usize,
+    pub(super) filter_and: bool,
+    pub(super) reverse_sorter: bool,
 
     state: BatcherState<Cusion>,
 }
@@ -44,8 +44,10 @@ where
             generators: vec![],
 
             batch_size: 0,
-            cusion_to_ui: None,
             filter_and: true,
+            reverse_sorter: true,
+
+            cusion_to_ui: None,
 
             state: BatcherState::default(),
         }
@@ -145,7 +147,11 @@ where
                         continue;
                     }
                     ord => {
-                        return ord.reverse();
+                        return if self.reverse_sorter {
+                            ord.reverse()
+                        } else {
+                            ord
+                        };
                     }
                 }
             }
