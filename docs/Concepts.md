@@ -127,8 +127,11 @@ async fn main() -> Result<()> {
 }
 ```
 
-Since there isn’t even a single Source or Generator here, an error occurs because this situation is not anticipated in ui-tui.
+Since there is not even a single Source or Generator here, running it should result in just an input field. Let's try running it.
 
+```bash
+cargo run
+```
 
 ## Add a source, filter, sorter
 
