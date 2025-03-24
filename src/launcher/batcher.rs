@@ -464,4 +464,15 @@ mod tests {
 
         Ok(())
     }
+
+    #[tokio::test]
+    async fn test_prepare() -> Result<(), Box<dyn std::error::Error>> {
+        let mut batcher: Batcher<'_, i32, ()> = Batcher::default();
+
+        batcher.add_raw_source(Box::pin(tokio_stream::iter(vec![1, 2])));
+
+        let buf = batcher.prepare().await;
+        assert_eq!(buf.len(), 2);
+        Ok(())
+    }
 }
