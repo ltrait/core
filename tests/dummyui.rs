@@ -1,6 +1,6 @@
 use ltrait::{
     UI,
-    color_eyre::eyre::{Result, ensure},
+    color_eyre::eyre::Result,
     launcher::batcher::Batcher,
     ui::{Buffer, Position},
 };
