@@ -35,10 +35,14 @@ criterion = { version = "2.9.1", package = "codspeed-criterion-compat", features
   "async_tokio",
   "tokio",
 ] }
+mimalloc = "0.1.44"
+tikv-jemallocator = { version = "0.6.0" }
 
 [features]
 default = ["log"]
 log = ["dep:tracing-appender", "dep:tracing-subscriber"]
+mimalloc = []
+jemalloc = []
 
 [[bench]]
 name = "bench"
