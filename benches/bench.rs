@@ -11,13 +11,6 @@ use std::convert::identity;
 
 use tokio::runtime::Runtime;
 
-#[cfg(feature = "jemalloc")]
-#[global_allocator]
-static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
-#[cfg(feature = "mimalloc")]
-#[global_allocator]
-static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
-
 async fn simple_source_a() -> Result<()> {
     let launcher = Launcher::default()
         .add_source(from_iter(0..black_box(500_000)), identity)

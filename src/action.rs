@@ -44,7 +44,7 @@ where
     f: F,
     action: ActionT,
 
-    _cusion: PhantomData<&'a Cusion>,
+    _marker: PhantomData<&'a Cusion>,
 }
 
 impl<'a, ActionContext, ActionT, F, Cusion> Action<'a>
@@ -74,7 +74,7 @@ where
             f: transformer,
             action,
 
-            _cusion: PhantomData,
+            _marker: PhantomData,
         }
     }
 }
