@@ -8,7 +8,7 @@ pub trait Filter<'a>: Send + 'a {
     fn predicate(&self, ctx: &Self::Context, input: &str) -> bool;
 }
 
-pub struct ClosureFilter<'a, Context, F>(F, std::marker::PhantomData<&'a Context>)
+pub struct ClosureFilter<'a, Context, F>(F, PhantomData<&'a Context>)
 where
     F: Fn(&Context, &str) -> bool,
     Context: 'a;
@@ -19,7 +19,7 @@ where
     Context: 'a,
 {
     pub fn new(f: F) -> Self {
-        Self(f, std::marker::PhantomData)
+        Self(f, PhantomData)
     }
 }
 
@@ -44,8 +44,7 @@ where
     f: F,
     filter: FilterT,
 
-    _filter_context: PhantomData<&'a FilterContext>,
-    _cusion: PhantomData<Cusion>,
+    _marker: PhantomData<(&'a FilterContext, Cusion)>,
 }
 
 impl<'a, FilterContext, FilterT, F, Cusion> Filter<'a>
@@ -75,8 +74,7 @@ where
             f: transformer,
             filter,
 
-            _filter_context: PhantomData,
-            _cusion: PhantomData,
+            _marker: PhantomData,
         }
     }
 }

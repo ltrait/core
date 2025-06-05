@@ -6,7 +6,7 @@ pub trait Sorter<'a>: Send + 'a {
     fn compare(&self, lhs: &Self::Context, rhs: &Self::Context, input: &str) -> std::cmp::Ordering;
 }
 
-pub struct ClosureSorter<'a, Context, F>(F, std::marker::PhantomData<&'a Context>)
+pub struct ClosureSorter<'a, Context, F>(F, PhantomData<&'a Context>)
 where
     F: Fn(&Context, &Context, &str) -> std::cmp::Ordering,
     Context: 'a;
@@ -17,7 +17,7 @@ where
     Context: 'a,
 {
     pub fn new(f: F) -> Self {
-        Self(f, std::marker::PhantomData)
+        Self(f, PhantomData)
     }
 }
 
@@ -42,8 +42,7 @@ where
     f: F,
     sorter: SorterT,
 
-    _sorter_context: PhantomData<&'a SorterContext>,
-    _cusion: PhantomData<Cusion>,
+    _marker: PhantomData<(&'a SorterContext, Cusion)>,
 }
 
 impl<'a, SorterContext, SorterT, F, Cusion> Sorter<'a>
@@ -72,8 +71,7 @@ where
         Self {
             f: transformer,
             sorter,
-            _sorter_context: PhantomData,
-            _cusion: PhantomData,
+            _marker: PhantomData,
         }
     }
 }

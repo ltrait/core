@@ -13,7 +13,7 @@ pub trait Generator: Send + Sync {
     async fn generate(&self, input: &str) -> Vec<Self::Item>;
 }
 
-pub struct ClosureGenerator<Item, F>(F, std::marker::PhantomData<Item>)
+pub struct ClosureGenerator<Item, F>(F, PhantomData<Item>)
 where
     F: Fn(&str) -> Vec<Item>;
 
@@ -22,7 +22,7 @@ where
     F: Fn(&str) -> Vec<Item>,
 {
     pub fn new(f: F) -> Self {
-        Self(f, std::marker::PhantomData)
+        Self(f, PhantomData)
     }
 }
 
@@ -48,7 +48,7 @@ where
     f: F,
     generator: GenT,
 
-    _cusion: PhantomData<Cusion>,
+    _marker: PhantomData<Cusion>,
 }
 
 #[async_trait]
@@ -80,7 +80,7 @@ where
         Self {
             f: transformer,
             generator,
-            _cusion: PhantomData,
+            _marker: PhantomData,
         }
     }
 }

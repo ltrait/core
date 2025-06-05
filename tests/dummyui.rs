@@ -14,7 +14,7 @@ where
 {
     f: F,
 
-    _cusion: PhantomData<&'a T>,
+    _marker: PhantomData<&'a T>,
 }
 
 impl<'a, T, F> DummyUI<'a, T, F>
@@ -25,7 +25,7 @@ where
     pub fn new(f: F) -> Self {
         Self {
             f,
-            _cusion: PhantomData,
+            _marker: PhantomData,
         }
     }
 }
