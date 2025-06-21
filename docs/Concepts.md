@@ -80,7 +80,7 @@ I recommend you to use [ltrait-ui-tui](https://github.com/ltrait/ui-tui) as your
 Add as a dependency.
 
 ```bash
-cargo add ltrait-ui-tui --git https://github.com/ltrait/ui-tui
+cargo add ltrait-ui-tui
 ```
 
 And write `main.rs`.
@@ -202,7 +202,6 @@ async fn main() -> Result<()> {
                 Viewport::Fullscreen,
                 '>', // Selected
                 ' ',
-                ltrait_ui_tui::sample_keyconfig,
             )),
             |c| TuiEntry {
                 text: (c.into(), Style::new()),
