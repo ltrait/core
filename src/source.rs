@@ -11,13 +11,13 @@ where
     Box::pin(tokio_stream::iter(iter))
 }
 
-pub fn transform_source<'a, Cusion, SourceContext, F>(
+pub fn transform_source<'a, Cushion, SourceContext, F>(
     source: Source<'a, SourceContext>,
     f: F,
-) -> Source<'a, Cusion>
+) -> Source<'a, Cushion>
 where
     SourceContext: 'a,
-    F: Fn(SourceContext) -> Cusion + Send + 'a,
+    F: Fn(SourceContext) -> Cushion + Send + 'a,
 {
     use tokio_stream::StreamExt as _;
 

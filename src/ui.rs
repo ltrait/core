@@ -3,10 +3,10 @@ use color_eyre::Result;
 pub trait UI<'a> {
     type Context: 'a;
 
-    fn run<Cusion: 'a + Send>(
+    fn run<Cushion: 'a + Send>(
         &self,
-        batcher: crate::launcher::batcher::Batcher<'a, Cusion, Self::Context>,
-    ) -> impl std::future::Future<Output = Result<Option<Cusion>>> + Send;
+        batcher: crate::launcher::batcher::Batcher<'a, Cushion, Self::Context>,
+    ) -> impl std::future::Future<Output = Result<Option<Cushion>>> + Send;
 }
 
 #[derive(Debug, Clone)]

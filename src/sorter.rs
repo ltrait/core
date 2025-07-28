@@ -33,39 +33,39 @@ where
     }
 }
 
-pub struct SorterWrapper<'a, SorterContext, SorterT, F, Cusion>
+pub struct SorterWrapper<'a, SorterContext, SorterT, F, Cushion>
 where
-    F: Fn(&Cusion) -> SorterContext + Send + 'a,
+    F: Fn(&Cushion) -> SorterContext + Send + 'a,
     SorterT: Sorter<'a, Context = SorterContext>,
     SorterContext: 'a + Sync,
 {
     f: F,
     sorter: SorterT,
 
-    _marker: PhantomData<(&'a SorterContext, Cusion)>,
+    _marker: PhantomData<(&'a SorterContext, Cushion)>,
 }
 
-impl<'a, SorterContext, SorterT, F, Cusion> Sorter<'a>
-    for SorterWrapper<'a, SorterContext, SorterT, F, Cusion>
+impl<'a, SorterContext, SorterT, F, Cushion> Sorter<'a>
+    for SorterWrapper<'a, SorterContext, SorterT, F, Cushion>
 where
-    F: Fn(&Cusion) -> SorterContext + Send + 'a,
+    F: Fn(&Cushion) -> SorterContext + Send + 'a,
     SorterT: Sorter<'a, Context = SorterContext>,
     SorterContext: 'a + Sync,
-    Cusion: 'a + Send,
+    Cushion: 'a + Send,
 {
-    type Context = Cusion;
+    type Context = Cushion;
 
     fn compare(&self, lhs: &Self::Context, rhs: &Self::Context, input: &str) -> std::cmp::Ordering {
         (self.sorter).compare(&(self.f)(lhs), &(self.f)(rhs), input)
     }
 }
 
-impl<'a, SorterContext, SorterT, F, Cusion> SorterWrapper<'a, SorterContext, SorterT, F, Cusion>
+impl<'a, SorterContext, SorterT, F, Cushion> SorterWrapper<'a, SorterContext, SorterT, F, Cushion>
 where
-    F: Fn(&Cusion) -> SorterContext + Send + 'a,
+    F: Fn(&Cushion) -> SorterContext + Send + 'a,
     SorterT: Sorter<'a, Context = SorterContext>,
     SorterContext: 'a + Sync,
-    Cusion: 'a + Send,
+    Cushion: 'a + Send,
 {
     pub fn new(sorter: SorterT, transformer: F) -> Self {
         Self {

@@ -35,39 +35,39 @@ where
     }
 }
 
-pub struct FilterWrapper<'a, FilterContext, FilterT, F, Cusion>
+pub struct FilterWrapper<'a, FilterContext, FilterT, F, Cushion>
 where
-    F: Fn(&Cusion) -> FilterContext + Send + 'a,
+    F: Fn(&Cushion) -> FilterContext + Send + 'a,
     FilterT: Filter<'a, Context = FilterContext>,
     FilterContext: 'a,
 {
     f: F,
     filter: FilterT,
 
-    _marker: PhantomData<(&'a FilterContext, Cusion)>,
+    _marker: PhantomData<(&'a FilterContext, Cushion)>,
 }
 
-impl<'a, FilterContext, FilterT, F, Cusion> Filter<'a>
-    for FilterWrapper<'a, FilterContext, FilterT, F, Cusion>
+impl<'a, FilterContext, FilterT, F, Cushion> Filter<'a>
+    for FilterWrapper<'a, FilterContext, FilterT, F, Cushion>
 where
-    F: Fn(&Cusion) -> FilterContext + Send + 'a,
+    F: Fn(&Cushion) -> FilterContext + Send + 'a,
     FilterT: Filter<'a, Context = FilterContext>,
     FilterContext: 'a + Sync,
-    Cusion: 'a + Send,
+    Cushion: 'a + Send,
 {
-    type Context = Cusion;
+    type Context = Cushion;
 
     fn predicate(&self, ctx: &Self::Context, input: &str) -> bool {
         self.filter.predicate(&(self.f)(ctx), input)
     }
 }
 
-impl<'a, FilterContext, FilterT, F, Cusion> FilterWrapper<'a, FilterContext, FilterT, F, Cusion>
+impl<'a, FilterContext, FilterT, F, Cushion> FilterWrapper<'a, FilterContext, FilterT, F, Cushion>
 where
-    F: Fn(&Cusion) -> FilterContext + Send + 'a,
+    F: Fn(&Cushion) -> FilterContext + Send + 'a,
     FilterT: Filter<'a, Context = FilterContext>,
     FilterContext: 'a + Sync,
-    Cusion: 'a + Send,
+    Cushion: 'a + Send,
 {
     pub fn new(filter: FilterT, transformer: F) -> Self {
         Self {

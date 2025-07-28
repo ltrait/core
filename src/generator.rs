@@ -39,26 +39,26 @@ where
     }
 }
 
-pub struct GenWrapper<Item, GenT, F, Cusion>
+pub struct GenWrapper<Item, GenT, F, Cushion>
 where
-    F: Fn(Item) -> Cusion + Sync + Send,
+    F: Fn(Item) -> Cushion + Sync + Send,
     GenT: Generator<Item = Item> + Sync,
-    Cusion: Sync + Send,
+    Cushion: Sync + Send,
 {
     f: F,
     generator: GenT,
 
-    _marker: PhantomData<Cusion>,
+    _marker: PhantomData<Cushion>,
 }
 
 #[async_trait]
-impl<Item, GenT, F, Cusion> Generator for GenWrapper<Item, GenT, F, Cusion>
+impl<Item, GenT, F, Cushion> Generator for GenWrapper<Item, GenT, F, Cushion>
 where
-    F: Fn(Item) -> Cusion + Sync + Send,
+    F: Fn(Item) -> Cushion + Sync + Send,
     GenT: Generator<Item = Item> + Sync,
-    Cusion: Sync + Send,
+    Cushion: Sync + Send,
 {
-    type Item = Cusion;
+    type Item = Cushion;
 
     async fn generate(&self, input: &str) -> Vec<Self::Item> {
         self.generator
@@ -70,11 +70,11 @@ where
     }
 }
 
-impl<Item, GenT, F, Cusion> GenWrapper<Item, GenT, F, Cusion>
+impl<Item, GenT, F, Cushion> GenWrapper<Item, GenT, F, Cushion>
 where
-    F: Fn(Item) -> Cusion + Sync + Send,
+    F: Fn(Item) -> Cushion + Sync + Send,
     GenT: Generator<Item = Item> + Sync,
-    Cusion: Sync + Send,
+    Cushion: Sync + Send,
 {
     pub fn new(generator: GenT, transformer: F) -> Self {
         Self {

@@ -34,40 +34,40 @@ where
     }
 }
 
-pub struct ActionWrapper<'a, ActionContext, ActionT, F, Cusion>
+pub struct ActionWrapper<'a, ActionContext, ActionT, F, Cushion>
 where
-    F: Fn(&Cusion) -> ActionContext + Send + 'a,
+    F: Fn(&Cushion) -> ActionContext + Send + 'a,
     ActionT: Action<'a, Context = ActionContext>,
     ActionContext: 'a,
-    Cusion: 'a + Sync,
+    Cushion: 'a + Sync,
 {
     f: F,
     action: ActionT,
 
-    _marker: PhantomData<&'a Cusion>,
+    _marker: PhantomData<&'a Cushion>,
 }
 
-impl<'a, ActionContext, ActionT, F, Cusion> Action<'a>
-    for ActionWrapper<'a, ActionContext, ActionT, F, Cusion>
+impl<'a, ActionContext, ActionT, F, Cushion> Action<'a>
+    for ActionWrapper<'a, ActionContext, ActionT, F, Cushion>
 where
-    F: Fn(&Cusion) -> ActionContext + Send + 'a,
+    F: Fn(&Cushion) -> ActionContext + Send + 'a,
     ActionT: Action<'a, Context = ActionContext>,
     ActionContext: 'a,
-    Cusion: 'a + Sync,
+    Cushion: 'a + Sync,
 {
-    type Context = Cusion;
+    type Context = Cushion;
 
     fn act(&self, ctx: &Self::Context) -> Result<()> {
         self.action.act(&(self.f)(ctx))
     }
 }
 
-impl<'a, ActionContext, ActionT, F, Cusion> ActionWrapper<'a, ActionContext, ActionT, F, Cusion>
+impl<'a, ActionContext, ActionT, F, Cushion> ActionWrapper<'a, ActionContext, ActionT, F, Cushion>
 where
-    F: Fn(&Cusion) -> ActionContext + Send + 'a,
+    F: Fn(&Cushion) -> ActionContext + Send + 'a,
     ActionT: Action<'a, Context = ActionContext>,
     ActionContext: 'a,
-    Cusion: 'a + Sync,
+    Cushion: 'a + Sync,
 {
     pub fn new(action: ActionT, transformer: F) -> Self {
         Self {

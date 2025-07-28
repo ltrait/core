@@ -11,28 +11,28 @@ use crate::ui::{Buffer, Position};
 
 use tokio_stream::StreamExt as _;
 
-type CusionToUIF<'a, Cusion, UIContext> = Option<Box<dyn Fn(&Cusion) -> UIContext + Send + 'a>>;
+type CushionToUIF<'a, Cushion, UIContext> = Option<Box<dyn Fn(&Cushion) -> UIContext + Send + 'a>>;
 
-type FilterT<'a, Cusion> = Box<dyn Filter<'a, Context = Cusion>>;
-type SorterT<'a, Cusion> = Box<dyn Sorter<'a, Context = Cusion>>;
-type GenT<'a, Cusion> = Box<dyn Generator<Item = Cusion> + 'a>;
+type FilterT<'a, Cushion> = Box<dyn Filter<'a, Context = Cushion>>;
+type SorterT<'a, Cushion> = Box<dyn Sorter<'a, Context = Cushion>>;
+type GenT<'a, Cushion> = Box<dyn Generator<Item = Cushion> + 'a>;
 
-pub struct Batcher<'a, Cusion, UIContext> {
-    filters: Vec<FilterT<'a, Cusion>>,
-    sorters: Vec<SorterT<'a, Cusion>>,
-    generators: Vec<GenT<'a, Cusion>>,
-    sources: Vec<Source<'a, Cusion>>,
+pub struct Batcher<'a, Cushion, UIContext> {
+    filters: Vec<FilterT<'a, Cushion>>,
+    sorters: Vec<SorterT<'a, Cushion>>,
+    generators: Vec<GenT<'a, Cushion>>,
+    sources: Vec<Source<'a, Cushion>>,
 
-    pub(super) cusion_to_ui: CusionToUIF<'a, Cusion, UIContext>,
+    pub(super) cusion_to_ui: CushionToUIF<'a, Cushion, UIContext>,
 
     pub(super) batch_size: usize,
     pub(super) filter_and: bool,
     pub(super) reverse_sorter: bool,
 
-    state: BatcherState<Cusion>,
+    state: BatcherState<Cushion>,
 }
 
-impl<'a, Cusion, UIContext> Default for Batcher<'a, Cusion, UIContext>
+impl<'a, Cushion, UIContext> Default for Batcher<'a, Cushion, UIContext>
 where
     UIContext: 'a + Send,
 {
@@ -54,19 +54,19 @@ where
     }
 }
 
-struct BatcherState<Cusion> {
+struct BatcherState<Cushion> {
     input: String,
 
     /// Items sourced from Source and generators when first batch
     /// The cache of the second and subsequent times is used.
     ///
     /// And Buffer's usize is `sourced_items`'s index
-    items: Vec<Cusion>,
+    items: Vec<Cushion>,
 
     // index of items
     items_from_sources_i: (Buffer<usize>, Position),
 
-    peeked_item: Option<Cusion>,
+    peeked_item: Option<Cushion>,
     // 本当に最初にsourceからitemを取得するときにまだ取得してpeeked_itemに入っていないだけなのに
     // source_indexを一つ上げてしまって最初のsourceがsourceされなくなるからひつよう
     first_source: bool,
@@ -79,7 +79,7 @@ mod debug_state {
     use super::BatcherState;
     use std::fmt;
 
-    impl<Cusion> fmt::Debug for BatcherState<Cusion> {
+    impl<Cushion> fmt::Debug for BatcherState<Cushion> {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
             // itemsの件数を表示
             let items_info = format!("{} item(s)", self.items.len());
@@ -103,7 +103,7 @@ mod debug_state {
     }
 }
 
-impl<Cusion> Default for BatcherState<Cusion> {
+impl<Cushion> Default for BatcherState<Cushion> {
     fn default() -> Self {
         Self {
             input: "".into(),
@@ -117,18 +117,18 @@ impl<Cusion> Default for BatcherState<Cusion> {
     }
 }
 
-impl<'a, Cusion, UIContext> Batcher<'a, Cusion, UIContext>
+impl<'a, Cushion, UIContext> Batcher<'a, Cushion, UIContext>
 where
-    Cusion: std::marker::Send + 'a,
+    Cushion: std::marker::Send + 'a,
 {
-    /// Consumes (and destroys) the current instance, returning ownership of the `Cusion`.
+    /// Consumes (and destroys) the current instance, returning ownership of the `Cushion`.
     ///
-    /// Call this function as the final step to retrieve the `Cusion`.
+    /// Call this function as the final step to retrieve the `Cushion`.
     #[inline(always)]
-    pub fn compute_cusion(mut self, id: usize) -> Result<Cusion> {
+    pub fn compute_cusion(mut self, id: usize) -> Result<Cushion> {
         ensure!(
             self.state.items.len() > id,
-            "Failed to get Cusion, index is over the length. Maybe the ui is not using the usize obtained from Buffer"
+            "Failed to get Cushion, index is over the length. Maybe the ui is not using the usize obtained from Buffer"
         );
 
         Ok(self.state.items.swap_remove(id))
@@ -201,7 +201,7 @@ where
 
             let gen_count_to_run = batch_count.min(gen_len - self.state.gen_index);
 
-            // Iterator<Item = impl Future<Output = Vec<Cusion>>>
+            // Iterator<Item = impl Future<Output = Vec<Cushion>>>
             // でjoin_allでFutureを解決して
             let cusions_from_gen = self.generators
                 [self.state.gen_index..(self.state.gen_index + gen_count_to_run)]
@@ -311,7 +311,7 @@ where
     ) -> Result<bool> {
         ensure!(
             self.cusion_to_ui.is_some(),
-            "Cusion to UIContext did not set. Did you set UI?(This error is probably not called because of the way Rust works!)"
+            "Cushion to UIContext did not set. Did you set UI?(This error is probably not called because of the way Rust works!)"
         );
         debug!("state on merge: {:?}", self.state);
 
@@ -385,27 +385,27 @@ where
 
     // そういえばSourceだけもともとBoxを求めてる(まあいいや)
     /// Add a source to `self`, builder
-    pub(super) fn add_raw_source(&mut self, source: Source<'a, Cusion>) {
+    pub(super) fn add_raw_source(&mut self, source: Source<'a, Cushion>) {
         self.sources.push(source);
     }
 
     pub(super) fn add_raw_filter<FilterT>(&mut self, filter: FilterT)
     where
-        FilterT: Filter<'a, Context = Cusion> + 'a,
+        FilterT: Filter<'a, Context = Cushion> + 'a,
     {
         self.filters.push(Box::new(filter));
     }
 
     pub(super) fn add_raw_sorter<SorterT>(&mut self, sorter: SorterT)
     where
-        SorterT: Sorter<'a, Context = Cusion> + 'a,
+        SorterT: Sorter<'a, Context = Cushion> + 'a,
     {
         self.sorters.push(Box::new(sorter));
     }
 
     pub(super) fn add_raw_generator<GenT>(&mut self, generator: GenT)
     where
-        GenT: Generator<Item = Cusion> + Sync + Send + 'a,
+        GenT: Generator<Item = Cushion> + Sync + Send + 'a,
     {
         self.generators.push(Box::new(generator));
     }
