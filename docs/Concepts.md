@@ -76,7 +76,7 @@ Cushion is a type, and it is recommended to implement it using an `enum`.
 Although it is not impossible to create a Launcher without Cushion, it is not recommended due to the significant limitations it imposes.
 Transform the Items extracted from the Source or Generator into a Cushion. Then, from the Cushion, transform it into the Context for each Sorter, Filter, etc.
 
-I recommend you to use [ltrait-ui-tui](https://github.com/ltrait/ui-tui) as your first ui.
+I recommend you to use [ltrait-ui-tui](https://crates.io/crates/ltrait-ui-tui) as your first ui.
 Add as a dependency.
 
 ```bash
