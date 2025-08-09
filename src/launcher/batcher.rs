@@ -27,7 +27,6 @@ pub struct Batcher<'a, Cushion, UIContext> {
 
     pub(super) batch_size: usize,
     pub(super) filter_and: bool,
-    pub(super) reverse_sorter: bool,
 
     state: BatcherState<Cushion>,
 }
@@ -45,7 +44,6 @@ where
 
             batch_size: 0,
             filter_and: true,
-            reverse_sorter: false,
 
             cusion_to_ui: None,
 
@@ -146,13 +144,7 @@ where
                     Equal => {
                         continue;
                     }
-                    ord => {
-                        return if self.reverse_sorter {
-                            ord.reverse()
-                        } else {
-                            ord
-                        };
-                    }
+                    ord => return ord,
                 }
             }
 
