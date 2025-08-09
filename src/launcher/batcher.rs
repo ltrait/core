@@ -28,6 +28,7 @@ pub struct Batcher<'a, Cushion, UIContext> {
     pub(super) batch_size: usize,
     pub(super) filter_and: bool,
     pub(super) reverse_sorter: bool,
+    pub(super) reversed_sorter_apply_order: bool,
 
     state: BatcherState<Cushion>,
 }
@@ -46,6 +47,7 @@ where
             batch_size: 0,
             filter_and: true,
             reverse_sorter: false,
+            reversed_sorter_apply_order: false,
 
             cusion_to_ui: None,
 
@@ -137,26 +139,39 @@ where
     #[inline(always)]
     fn create_sorter(&self) -> impl Fn(&usize, &usize) -> std::cmp::Ordering {
         |lhs, rhs| {
-            use std::cmp::Ordering::*;
+            use std::cmp::Ordering;
 
             let lhs = &self.state.items[*lhs];
             let rhs = &self.state.items[*rhs];
-            for si in &self.sorters {
-                match si.compare(lhs, rhs, &self.state.input) {
-                    Equal => {
-                        continue;
+
+            macro_rules! compare {
+                ($i:ident) => {
+                    match self.sorters[$i].compare(lhs, rhs, &self.state.input) {
+                        Ordering::Equal => {
+                            continue;
+                        }
+                        ord => {
+                            return if self.reverse_sorter {
+                                ord.reverse()
+                            } else {
+                                ord
+                            };
+                        }
                     }
-                    ord => {
-                        return if self.reverse_sorter {
-                            ord.reverse()
-                        } else {
-                            ord
-                        };
-                    }
+                };
+            }
+
+            if self.reversed_sorter_apply_order {
+                for i in (0..self.sorters.len()).rev() {
+                    compare!(i)
+                }
+            } else {
+                for i in 0..self.sorters.len() {
+                    compare!(i)
                 }
             }
 
-            Equal
+            Ordering::Equal
         }
     }
 

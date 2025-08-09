@@ -182,6 +182,11 @@ where
         self
     }
 
+    pub fn reversed_sorter_apply_order(mut self, flag: bool) -> Self {
+        self.batcher.reversed_sorter_apply_order = flag;
+        self
+    }
+
     /// A batch represents the process of retrieving items from all available sources and sorting the filtered items
     /// according to user-specified sorters.
     ///
