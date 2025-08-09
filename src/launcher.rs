@@ -182,6 +182,12 @@ where
         self
     }
 
+    /// Reverses the application order of sorters.
+    ///
+    /// By default, sorters are applied in the order they are added. If this flag is set to `true`,
+    /// they will be applied in the reverse order of addition. This is useful when you want the
+    /// last-added sorter to have the highest priority in sorting.
+    /// The default value is `false`.
     pub fn reversed_sorter_apply_order(mut self, flag: bool) -> Self {
         self.batcher.reversed_sorter_apply_order = flag;
         self
