@@ -144,9 +144,9 @@ where
             let lhs = &self.state.items[*lhs];
             let rhs = &self.state.items[*rhs];
 
-            macro_rules! compare {
-                ($i:ident) => {
-                    match self.sorters[$i].compare(lhs, rhs, &self.state.input) {
+            if self.reversed_sorter_apply_order {
+                for i in (0..self.sorters.len()).rev() {
+                    match self.sorters[i].compare(lhs, rhs, &self.state.input) {
                         Ordering::Equal => {
                             continue;
                         }
@@ -158,16 +158,21 @@ where
                             };
                         }
                     }
-                };
-            }
-
-            if self.reversed_sorter_apply_order {
-                for i in (0..self.sorters.len()).rev() {
-                    compare!(i)
                 }
             } else {
                 for i in 0..self.sorters.len() {
-                    compare!(i)
+                    match self.sorters[i].compare(lhs, rhs, &self.state.input) {
+                        Ordering::Equal => {
+                            continue;
+                        }
+                        ord => {
+                            return if self.reverse_sorter {
+                                ord.reverse()
+                            } else {
+                                ord
+                            };
+                        }
+                    }
                 }
             }
 
