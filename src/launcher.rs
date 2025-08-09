@@ -145,7 +145,7 @@ where
         self.add_raw_generator(GenWrapper::new(generator, transformer))
     }
 
-    pub(super) fn add_raw_generator<GenT>(mut self, generator: GenT) -> Self
+    pub fn add_raw_generator<GenT>(mut self, generator: GenT) -> Self
     where
         GenT: Generator<Item = Cushion> + Sync + Send + 'a,
     {
