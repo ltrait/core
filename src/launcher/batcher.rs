@@ -45,7 +45,7 @@ where
 
             batch_size: 0,
             filter_and: true,
-            reverse_sorter: true,
+            reverse_sorter: false,
 
             cusion_to_ui: None,
 
