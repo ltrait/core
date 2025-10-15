@@ -46,7 +46,7 @@ where
 
         while more {
             let from = batcher.prepare().await;
-            more = batcher.merge(&mut buf, from).await?;
+            more = batcher.merge(&mut buf, from)?;
         }
 
         let mut pos = Position::default();
