@@ -284,7 +284,7 @@ where
 
     /// Merges UI context data into the rendering buffer.
     ///
-    /// This asynchronous function accepts two buffers:
+    /// This synchronous function accepts two buffers:
     /// - `buf`: A mutable reference to a `Buffer<(UIContext, usize)>` used for UI rendering.
     /// - `from`: A `Buffer<usize>` produced by `prepare` containing corresponding indices.
     ///
@@ -296,7 +296,7 @@ where
     /// Both the preparation and merge operations are relatively time-consuming. To minimize rendering delays,
     /// it is recommended that the preparation and rendering processes are executed concurrently (for example, in separate
     /// threads or processes), while the merge operation should be performed in a synchronized manner.
-    pub async fn merge(
+    pub fn merge(
         &mut self,
         buf: &mut Buffer<(UIContext, usize)>,
         mut from: Buffer<usize>,
