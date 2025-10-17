@@ -1,23 +1,23 @@
 use std::pin::Pin;
 
-pub type Source<'a, T> = Pin<Box<dyn tokio_stream::Stream<Item = T> + Send + 'a>>;
+pub type Source<T> = Pin<Box<dyn tokio_stream::Stream<Item = T> + Send>>;
 
-pub fn from_iter<'a, T, Iter>(
+pub fn from_iter<T, Iter>(
     iter: impl std::iter::IntoIterator<Item = T, IntoIter = Iter>,
-) -> Source<'a, T>
+) -> Source<T>
 where
-    Iter: std::iter::Iterator<Item = T> + Send + 'a,
+    Iter: std::iter::Iterator<Item = T> + Send + 'static,
 {
     Box::pin(tokio_stream::iter(iter))
 }
 
-pub fn transform_source<'a, Cushion, SourceContext, F>(
-    source: Source<'a, SourceContext>,
+pub fn transform_source<Cushion, SourceContext, F>(
+    source: Source<SourceContext>,
     f: F,
-) -> Source<'a, Cushion>
+) -> Source<Cushion>
 where
-    SourceContext: 'a,
-    F: Fn(SourceContext) -> Cushion + Send + 'a,
+    SourceContext: 'static,
+    F: Fn(SourceContext) -> Cushion + Send + 'static,
 {
     use tokio_stream::StreamExt as _;
 

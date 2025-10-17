@@ -1,31 +1,31 @@
 use color_eyre::Result;
 use std::marker::PhantomData;
 
-pub trait Action<'a>: Send + 'a {
-    type Context: 'a;
+pub trait Action: Send {
+    type Context;
 
     fn act(&self, ctx: &Self::Context) -> Result<()>;
 }
 
-pub struct ClosureAction<'a, Context, F>(F, PhantomData<&'a Context>)
+pub struct ClosureAction<Context, F>(F, PhantomData<Context>)
 where
-    F: Fn(&Context) -> Result<()> + Send + 'a,
-    Context: 'a + Sync;
+    F: Fn(&Context) -> Result<()> + Send,
+    Context: Sync;
 
-impl<'a, Context, F> ClosureAction<'a, Context, F>
+impl<Context, F> ClosureAction<Context, F>
 where
-    F: Fn(&Context) -> Result<()> + Send + 'a,
-    Context: 'a + Sync,
+    F: Fn(&Context) -> Result<()> + Send,
+    Context: Sync,
 {
     pub fn new(f: F) -> Self {
         Self(f, PhantomData)
     }
 }
 
-impl<'a, Context, F> Action<'a> for ClosureAction<'a, Context, F>
+impl<Context, F> Action for ClosureAction<Context, F>
 where
-    F: Fn(&Context) -> Result<()> + Send + 'a,
-    Context: 'a + Sync,
+    F: Fn(&Context) -> Result<()> + Send,
+    Context: Sync + Send,
 {
     type Context = Context;
 
@@ -34,26 +34,24 @@ where
     }
 }
 
-pub struct ActionWrapper<'a, ActionContext, ActionT, F, Cushion>
+pub struct ActionWrapper<ActionContext, ActionT, F, Cushion>
 where
-    F: Fn(&Cushion) -> ActionContext + Send + 'a,
-    ActionT: Action<'a, Context = ActionContext>,
-    ActionContext: 'a,
-    Cushion: 'a + Sync,
+    F: Fn(&Cushion) -> ActionContext + Send,
+    ActionT: Action<Context = ActionContext>,
+    Cushion: Sync,
 {
     f: F,
     action: ActionT,
 
-    _marker: PhantomData<&'a Cushion>,
+    _marker: PhantomData<Cushion>,
 }
 
-impl<'a, ActionContext, ActionT, F, Cushion> Action<'a>
-    for ActionWrapper<'a, ActionContext, ActionT, F, Cushion>
+impl<ActionContext, ActionT, F, Cushion> Action
+    for ActionWrapper<ActionContext, ActionT, F, Cushion>
 where
-    F: Fn(&Cushion) -> ActionContext + Send + 'a,
-    ActionT: Action<'a, Context = ActionContext>,
-    ActionContext: 'a,
-    Cushion: 'a + Sync,
+    F: Fn(&Cushion) -> ActionContext + Send,
+    ActionT: Action<Context = ActionContext>,
+    Cushion: Sync + Send,
 {
     type Context = Cushion;
 
@@ -62,12 +60,11 @@ where
     }
 }
 
-impl<'a, ActionContext, ActionT, F, Cushion> ActionWrapper<'a, ActionContext, ActionT, F, Cushion>
+impl<ActionContext, ActionT, F, Cushion> ActionWrapper<ActionContext, ActionT, F, Cushion>
 where
-    F: Fn(&Cushion) -> ActionContext + Send + 'a,
-    ActionT: Action<'a, Context = ActionContext>,
-    ActionContext: 'a,
-    Cushion: 'a + Sync,
+    F: Fn(&Cushion) -> ActionContext + Send,
+    ActionT: Action<Context = ActionContext>,
+    Cushion: Sync,
 {
     pub fn new(action: ActionT, transformer: F) -> Self {
         Self {

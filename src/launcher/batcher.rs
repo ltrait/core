@@ -11,19 +11,19 @@ use crate::ui::{Buffer, Position};
 
 use tokio_stream::StreamExt as _;
 
-type CushionToUIF<'a, Cushion, UIContext> = Option<Box<dyn Fn(&Cushion) -> UIContext + Send + 'a>>;
+type CushionToUIF<Cushion, UIContext> = Option<Box<dyn Fn(&Cushion) -> UIContext + Send>>;
 
-type FilterT<'a, Cushion> = Box<dyn Filter<'a, Context = Cushion>>;
-type SorterT<'a, Cushion> = Box<dyn Sorter<'a, Context = Cushion>>;
-type GenT<'a, Cushion> = Box<dyn Generator<Item = Cushion> + 'a>;
+type FilterT<Cushion> = Box<dyn Filter<Context = Cushion>>;
+type SorterT<Cushion> = Box<dyn Sorter<Context = Cushion>>;
+type GenT<Cushion> = Box<dyn Generator<Item = Cushion>>;
 
-pub struct Batcher<'a, Cushion, UIContext> {
-    filters: Vec<FilterT<'a, Cushion>>,
-    sorters: Vec<SorterT<'a, Cushion>>,
-    generators: Vec<GenT<'a, Cushion>>,
-    sources: Vec<Source<'a, Cushion>>,
+pub struct Batcher<Cushion, UIContext> {
+    filters: Vec<FilterT<Cushion>>,
+    sorters: Vec<SorterT<Cushion>>,
+    generators: Vec<GenT<Cushion>>,
+    sources: Vec<Source<Cushion>>,
 
-    pub(super) cusion_to_ui: CushionToUIF<'a, Cushion, UIContext>,
+    pub(super) cushion_to_ui: CushionToUIF<Cushion, UIContext>,
 
     pub(super) batch_size: usize,
     pub(super) filter_and: bool,
@@ -31,9 +31,9 @@ pub struct Batcher<'a, Cushion, UIContext> {
     state: BatcherState<Cushion>,
 }
 
-impl<'a, Cushion, UIContext> Default for Batcher<'a, Cushion, UIContext>
+impl<Cushion, UIContext> Default for Batcher<Cushion, UIContext>
 where
-    UIContext: 'a + Send,
+    UIContext: Send,
 {
     fn default() -> Self {
         Self {
@@ -45,7 +45,7 @@ where
             batch_size: 0,
             filter_and: true,
 
-            cusion_to_ui: None,
+            cushion_to_ui: None,
 
             state: BatcherState::default(),
         }
@@ -115,15 +115,15 @@ impl<Cushion> Default for BatcherState<Cushion> {
     }
 }
 
-impl<'a, Cushion, UIContext> Batcher<'a, Cushion, UIContext>
+impl<Cushion, UIContext> Batcher<Cushion, UIContext>
 where
-    Cushion: std::marker::Send + 'a,
+    Cushion: Send,
 {
     /// Consumes (and destroys) the current instance, returning ownership of the `Cushion`.
     ///
     /// Call this function as the final step to retrieve the `Cushion`.
     #[inline(always)]
-    pub fn compute_cusion(mut self, id: usize) -> Result<Cushion> {
+    pub fn compute_cushion(mut self, id: usize) -> Result<Cushion> {
         ensure!(
             self.state.items.len() > id,
             "Failed to get Cushion, index is over the length. Maybe the ui is not using the usize obtained from Buffer"
@@ -135,25 +135,25 @@ where
     #[inline(always)]
     fn create_sorter(&self) -> impl Fn(&usize, &usize) -> std::cmp::Ordering {
         |lhs, rhs| {
-            use std::cmp::Ordering::*;
+            use std::cmp::Ordering;
 
             let lhs = &self.state.items[*lhs];
             let rhs = &self.state.items[*rhs];
             for si in &self.sorters {
                 match si.compare(lhs, rhs, &self.state.input) {
-                    Equal => {
+                    Ordering::Equal => {
                         continue;
                     }
                     ord => return ord,
                 }
             }
 
-            Equal
+            Ordering::Equal
         }
     }
 
     // ここのusizeはself.state.itemsのindex
-    // あとからmergeで比較しつつmergeして、最後にcusion_to_uiで(UIContext, usize)に変換される
+    // あとからmergeで比較しつつmergeして、最後にcushion_to_uiで(UIContext, usize)に変換される
 
     /// Prepares the next batch of indices for rendering.
     ///
@@ -195,23 +195,23 @@ where
 
             // Iterator<Item = impl Future<Output = Vec<Cushion>>>
             // でjoin_allでFutureを解決して
-            let cusions_from_gen = self.generators
+            let cushions_from_gen = self.generators
                 [self.state.gen_index..(self.state.gen_index + gen_count_to_run)]
                 .iter()
                 .map(|r#gen| async {
-                    let cusions = r#gen.generate(&self.state.input).await.into_iter();
+                    let cushions = r#gen.generate(&self.state.input).await.into_iter();
                     // 最終結果で計算が終わったあとの長さにしか興味がないからRelaxedで問題ない
-                    len.fetch_add(cusions.len(), Ordering::Relaxed);
-                    cusions
+                    len.fetch_add(cushions.len(), Ordering::Relaxed);
+                    cushions
                 });
 
-            let cusions_from_gen = futures::future::join_all(cusions_from_gen)
+            let cushions_from_gen = futures::future::join_all(cushions_from_gen)
                 .await
                 .into_iter()
                 .flatten();
 
             v.reserve(len.load(Ordering::SeqCst));
-            for c in cusions_from_gen {
+            for c in cushions_from_gen {
                 let index = self.state.items.len();
                 self.state.items.push(c);
                 v.push(index);
@@ -236,9 +236,9 @@ where
             {
                 v.push(*ci);
             } else if self.state.source_index < self.sources.len() {
-                if let Some(cusion) = self.state.peeked_item.take() {
+                if let Some(cushion) = self.state.peeked_item.take() {
                     batch_count -= 1;
-                    self.state.items.push(cusion);
+                    self.state.items.push(cushion);
                     v.push(self.state.items.len() - 1);
                     self.state
                         .items_from_sources_i
@@ -302,7 +302,7 @@ where
         mut from: Buffer<usize>,
     ) -> Result<bool> {
         ensure!(
-            self.cusion_to_ui.is_some(),
+            self.cushion_to_ui.is_some(),
             "Cushion to UIContext did not set. Did you set UI?(This error is probably not called because of the way Rust works!)"
         );
         debug!("state on merge: {:?}", self.state);
@@ -332,7 +332,7 @@ where
                     next_dst = iter_dst.next();
                 } else {
                     merged.push({
-                        let ui_ctx = (self.cusion_to_ui.as_ref().unwrap())(
+                        let ui_ctx = (self.cushion_to_ui.as_ref().unwrap())(
                             &self.state.items[*next_src.unwrap()],
                         );
 
@@ -348,12 +348,12 @@ where
             }
             if let Some(val) = next_src {
                 merged.push({
-                    let ui_ctx = (self.cusion_to_ui.as_ref().unwrap())(&self.state.items[*val]);
+                    let ui_ctx = (self.cushion_to_ui.as_ref().unwrap())(&self.state.items[*val]);
 
                     (ui_ctx, *val)
                 });
                 merged.extend(iter_src.map(|ci| {
-                    let ui_ctx = (self.cusion_to_ui.as_ref().unwrap())(&self.state.items[*ci]);
+                    let ui_ctx = (self.cushion_to_ui.as_ref().unwrap())(&self.state.items[*ci]);
 
                     (ui_ctx, *ci)
                 }));
@@ -377,27 +377,27 @@ where
 
     // そういえばSourceだけもともとBoxを求めてる(まあいいや)
     /// Add a source to `self`, builder
-    pub(super) fn add_raw_source(&mut self, source: Source<'a, Cushion>) {
+    pub(super) fn add_raw_source(&mut self, source: Source<Cushion>) {
         self.sources.push(source);
     }
 
     pub(super) fn add_raw_filter<FilterT>(&mut self, filter: FilterT)
     where
-        FilterT: Filter<'a, Context = Cushion> + 'a,
+        FilterT: Filter<Context = Cushion> + 'static,
     {
         self.filters.push(Box::new(filter));
     }
 
     pub(super) fn add_raw_sorter<SorterT>(&mut self, sorter: SorterT)
     where
-        SorterT: Sorter<'a, Context = Cushion> + 'a,
+        SorterT: Sorter<Context = Cushion> + 'static,
     {
         self.sorters.push(Box::new(sorter));
     }
 
     pub(super) fn add_raw_generator<GenT>(&mut self, generator: GenT)
     where
-        GenT: Generator<Item = Cushion> + Sync + Send + 'a,
+        GenT: Generator<Item = Cushion> + Sync + Send + 'static,
     {
         self.generators.push(Box::new(generator));
     }
@@ -409,7 +409,7 @@ mod tests {
 
     #[test]
     fn add_source() -> Result<(), Box<dyn std::error::Error>> {
-        let mut batcher: Batcher<'_, i32, ()> = Batcher::default();
+        let mut batcher: Batcher<i32, ()> = Batcher::default();
 
         batcher.add_raw_source(Box::pin(tokio_stream::iter(vec![1, 2])));
 
@@ -420,7 +420,7 @@ mod tests {
 
     #[test]
     fn add_filter() -> Result<(), Box<dyn std::error::Error>> {
-        let mut batcher: Batcher<'_, i32, ()> = Batcher::default();
+        let mut batcher: Batcher<i32, ()> = Batcher::default();
 
         batcher.add_raw_filter(crate::filter::ClosureFilter::new(|&x: &i32, input| {
             x == 0i32 && input == ""
@@ -433,7 +433,7 @@ mod tests {
 
     #[test]
     fn add_sorter() -> Result<(), Box<dyn std::error::Error>> {
-        let mut batcher: Batcher<'_, i32, ()> = Batcher::default();
+        let mut batcher: Batcher<i32, ()> = Batcher::default();
 
         batcher.add_raw_sorter(crate::sorter::ClosureSorter::new(|lhs: &i32, rhs, _| {
             lhs.cmp(rhs)
@@ -446,7 +446,7 @@ mod tests {
 
     #[test]
     fn add_generator() -> Result<(), Box<dyn std::error::Error>> {
-        let mut batcher: Batcher<'_, (), ()> = Batcher::default();
+        let mut batcher: Batcher<(), ()> = Batcher::default();
         batcher.add_raw_generator(crate::generator::ClosureGenerator::new(|input| {
             println!("{input}");
             vec![]
@@ -459,7 +459,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_prepare() -> Result<(), Box<dyn std::error::Error>> {
-        let mut batcher: Batcher<'_, i32, ()> = Batcher::default();
+        let mut batcher: Batcher<i32, ()> = Batcher::default();
 
         batcher.add_raw_source(Box::pin(tokio_stream::iter(vec![1, 2])));
 

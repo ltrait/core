@@ -1,11 +1,11 @@
 use color_eyre::Result;
 
-pub trait UI<'a> {
-    type Context: 'a;
+pub trait UI {
+    type Context;
 
-    fn run<Cushion: 'a + Send>(
+    fn run<Cushion: Send>(
         &self,
-        batcher: crate::launcher::batcher::Batcher<'a, Cushion, Self::Context>,
+        batcher: crate::launcher::batcher::Batcher<Cushion, Self::Context>,
     ) -> impl std::future::Future<Output = Result<Option<Cushion>>> + Send;
 }
 
