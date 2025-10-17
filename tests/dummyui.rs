@@ -7,19 +7,18 @@ use ltrait::{
 
 use std::marker::PhantomData;
 
-pub struct DummyUI<'a, T, F>
+pub struct DummyUI<T, F>
 where
-    T: 'a,
     F: Fn(&T),
 {
     f: F,
 
-    _marker: PhantomData<&'a T>,
+    _marker: PhantomData<T>,
 }
 
-impl<'a, T, F> DummyUI<'a, T, F>
+impl<T, F> DummyUI<T, F>
 where
-    T: 'a + Sync + Send,
+    T: Sync + Send,
     F: Fn(&T) + Sync,
 {
     pub fn new(f: F) -> Self {
@@ -30,17 +29,17 @@ where
     }
 }
 
-impl<'a, T, F> UI<'a> for DummyUI<'a, T, F>
+impl<T, F> UI for DummyUI<T, F>
 where
-    T: 'a + Sync + Send,
+    T: Sync + Send,
     F: Fn(&T) + Sync,
 {
     type Context = T;
 
-    async fn run<Cusion: 'a + Send>(
+    async fn run<Cushion: Send>(
         &self,
-        mut batcher: Batcher<'a, Cusion, Self::Context>,
-    ) -> Result<Option<Cusion>> {
+        mut batcher: Batcher<Cushion, Self::Context>,
+    ) -> Result<Option<Cushion>> {
         let mut more = true;
         let mut buf: Buffer<(T, usize)> = Buffer::default();
 
@@ -59,7 +58,7 @@ where
         }
 
         if least_one {
-            Ok(Some(batcher.compute_cusion(0)?))
+            Ok(Some(batcher.compute_cushion(0)?))
         } else {
             Ok(None)
         }

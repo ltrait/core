@@ -1,30 +1,28 @@
 use std::marker::PhantomData;
 
-pub trait Sorter<'a>: Send + 'a {
-    type Context: 'a;
+pub trait Sorter: Send {
+    type Context;
 
     fn compare(&self, lhs: &Self::Context, rhs: &Self::Context, input: &str) -> std::cmp::Ordering;
 }
 
-pub struct ClosureSorter<'a, Context, F>(F, PhantomData<&'a Context>)
+pub struct ClosureSorter<Context, F>(F, PhantomData<Context>)
 where
-    F: Fn(&Context, &Context, &str) -> std::cmp::Ordering,
-    Context: 'a;
+    F: Fn(&Context, &Context, &str) -> std::cmp::Ordering;
 
-impl<'a, Context, F> ClosureSorter<'a, Context, F>
+impl<Context, F> ClosureSorter<Context, F>
 where
     F: Fn(&Context, &Context, &str) -> std::cmp::Ordering,
-    Context: 'a,
 {
     pub fn new(f: F) -> Self {
         Self(f, PhantomData)
     }
 }
 
-impl<'a, Context, F> Sorter<'a> for ClosureSorter<'a, Context, F>
+impl<Context, F> Sorter for ClosureSorter<Context, F>
 where
-    F: Fn(&Context, &Context, &str) -> std::cmp::Ordering + Send + 'a,
-    Context: 'a + Sync,
+    F: Fn(&Context, &Context, &str) -> std::cmp::Ordering + Send,
+    Context: Sync + Send,
 {
     type Context = Context;
 
@@ -33,25 +31,25 @@ where
     }
 }
 
-pub struct SorterWrapper<'a, SorterContext, SorterT, F, Cushion>
+pub struct SorterWrapper<SorterContext, SorterT, F, Cushion>
 where
-    F: Fn(&Cushion) -> SorterContext + Send + 'a,
-    SorterT: Sorter<'a, Context = SorterContext>,
-    SorterContext: 'a + Sync,
+    F: Fn(&Cushion) -> SorterContext + Send,
+    SorterT: Sorter<Context = SorterContext>,
+    SorterContext: Sync,
 {
     f: F,
     sorter: SorterT,
 
-    _marker: PhantomData<(&'a SorterContext, Cushion)>,
+    _marker: PhantomData<(SorterContext, Cushion)>,
 }
 
-impl<'a, SorterContext, SorterT, F, Cushion> Sorter<'a>
-    for SorterWrapper<'a, SorterContext, SorterT, F, Cushion>
+impl<SorterContext, SorterT, F, Cushion> Sorter
+    for SorterWrapper<SorterContext, SorterT, F, Cushion>
 where
-    F: Fn(&Cushion) -> SorterContext + Send + 'a,
-    SorterT: Sorter<'a, Context = SorterContext>,
-    SorterContext: 'a + Sync,
-    Cushion: 'a + Send,
+    F: Fn(&Cushion) -> SorterContext + Send,
+    SorterT: Sorter<Context = SorterContext>,
+    SorterContext: Sync + Send,
+    Cushion: Send,
 {
     type Context = Cushion;
 
@@ -60,12 +58,12 @@ where
     }
 }
 
-impl<'a, SorterContext, SorterT, F, Cushion> SorterWrapper<'a, SorterContext, SorterT, F, Cushion>
+impl<SorterContext, SorterT, F, Cushion> SorterWrapper<SorterContext, SorterT, F, Cushion>
 where
-    F: Fn(&Cushion) -> SorterContext + Send + 'a,
-    SorterT: Sorter<'a, Context = SorterContext>,
-    SorterContext: 'a + Sync,
-    Cushion: 'a + Send,
+    F: Fn(&Cushion) -> SorterContext + Send,
+    SorterT: Sorter<Context = SorterContext>,
+    SorterContext: Sync,
+    Cushion: Send,
 {
     pub fn new(sorter: SorterT, transformer: F) -> Self {
         Self {

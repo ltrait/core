@@ -2,31 +2,29 @@
 // 本当はasyncのほうがいいかも?
 use std::marker::PhantomData;
 
-pub trait Filter<'a>: Send + 'a {
-    type Context: 'a;
+pub trait Filter: Send {
+    type Context;
 
     fn predicate(&self, ctx: &Self::Context, input: &str) -> bool;
 }
 
-pub struct ClosureFilter<'a, Context, F>(F, PhantomData<&'a Context>)
+pub struct ClosureFilter<Context, F>(F, PhantomData<Context>)
 where
-    F: Fn(&Context, &str) -> bool,
-    Context: 'a;
+    F: Fn(&Context, &str) -> bool;
 
-impl<'a, Context, F> ClosureFilter<'a, Context, F>
+impl<Context, F> ClosureFilter<Context, F>
 where
     F: Fn(&Context, &str) -> bool,
-    Context: 'a,
 {
     pub fn new(f: F) -> Self {
         Self(f, PhantomData)
     }
 }
 
-impl<'a, Context, F> Filter<'a> for ClosureFilter<'a, Context, F>
+impl<Context, F> Filter for ClosureFilter<Context, F>
 where
-    F: Fn(&Context, &str) -> bool + Send + 'a,
-    Context: 'a + Sync,
+    F: Fn(&Context, &str) -> bool + Send,
+    Context: Sync + Send,
 {
     type Context = Context;
 
@@ -35,25 +33,24 @@ where
     }
 }
 
-pub struct FilterWrapper<'a, FilterContext, FilterT, F, Cushion>
+pub struct FilterWrapper<FilterContext, FilterT, F, Cushion>
 where
-    F: Fn(&Cushion) -> FilterContext + Send + 'a,
-    FilterT: Filter<'a, Context = FilterContext>,
-    FilterContext: 'a,
+    F: Fn(&Cushion) -> FilterContext + Send,
+    FilterT: Filter<Context = FilterContext>,
 {
     f: F,
     filter: FilterT,
 
-    _marker: PhantomData<(&'a FilterContext, Cushion)>,
+    _marker: PhantomData<(FilterContext, Cushion)>,
 }
 
-impl<'a, FilterContext, FilterT, F, Cushion> Filter<'a>
-    for FilterWrapper<'a, FilterContext, FilterT, F, Cushion>
+impl<FilterContext, FilterT, F, Cushion> Filter
+    for FilterWrapper<FilterContext, FilterT, F, Cushion>
 where
-    F: Fn(&Cushion) -> FilterContext + Send + 'a,
-    FilterT: Filter<'a, Context = FilterContext>,
-    FilterContext: 'a + Sync,
-    Cushion: 'a + Send,
+    F: Fn(&Cushion) -> FilterContext + Send,
+    FilterT: Filter<Context = FilterContext>,
+    FilterContext: Sync + Send,
+    Cushion: Send,
 {
     type Context = Cushion;
 
@@ -62,12 +59,12 @@ where
     }
 }
 
-impl<'a, FilterContext, FilterT, F, Cushion> FilterWrapper<'a, FilterContext, FilterT, F, Cushion>
+impl<FilterContext, FilterT, F, Cushion> FilterWrapper<FilterContext, FilterT, F, Cushion>
 where
-    F: Fn(&Cushion) -> FilterContext + Send + 'a,
-    FilterT: Filter<'a, Context = FilterContext>,
-    FilterContext: 'a + Sync,
-    Cushion: 'a + Send,
+    F: Fn(&Cushion) -> FilterContext + Send,
+    FilterT: Filter<Context = FilterContext>,
+    FilterContext: Sync,
+    Cushion: Send,
 {
     pub fn new(filter: FilterT, transformer: F) -> Self {
         Self {

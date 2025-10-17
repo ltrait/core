@@ -10,23 +10,23 @@ use crate::ui::UI;
 
 pub mod batcher;
 
-pub struct Launcher<'a, Cushion, UIT, UIContext>
+pub struct Launcher<Cushion, UIT, UIContext>
 where
-    UIT: UI<'a, Context = UIContext>,
-    UIContext: 'a + Send,
-    Cushion: 'a + Sync,
+    UIT: UI<Context = UIContext>,
+    UIContext: Send,
+    Cushion: Sync + Send,
 {
-    batcher: Batcher<'a, Cushion, UIContext>,
+    batcher: Batcher<Cushion, UIContext>,
 
-    actions: Vec<Box<dyn Action<'a, Context = Cushion>>>,
+    actions: Vec<Box<dyn Action<Context = Cushion>>>,
     ui: Option<UIT>,
 }
 
-impl<'a, Cushion, UIT, UIContext> Default for Launcher<'a, Cushion, UIT, UIContext>
+impl<Cushion, UIT, UIContext> Default for Launcher<Cushion, UIT, UIContext>
 where
-    UIT: UI<'a, Context = UIContext> + 'a,
-    UIContext: 'a + Send,
-    Cushion: 'a + Sync,
+    UIT: UI<Context = UIContext>,
+    UIContext: Send,
+    Cushion: Sync + Send,
 {
     fn default() -> Self {
         Self {
@@ -49,41 +49,37 @@ where
 /// * `std::convert::Into::into`
 ///
 /// as the transformer function
-impl<'a, Cushion, UIT, UIContext> Launcher<'a, Cushion, UIT, UIContext>
+impl<Cushion, UIT, UIContext> Launcher<Cushion, UIT, UIContext>
 where
-    UIT: UI<'a, Context = UIContext> + Sync + 'a,
-    UIContext: 'a + Send,
-    Cushion: 'a + Send + Sync,
+    UIT: UI<Context = UIContext>,
+    UIContext: Send,
+    Cushion: Send + Sync + 'static,
 {
-    pub fn add_source<SourceContext, F>(
-        self,
-        source: Source<'a, SourceContext>,
-        transformer: F,
-    ) -> Self
+    pub fn add_source<SourceContext, F>(self, source: Source<SourceContext>, transformer: F) -> Self
     where
-        F: Fn(SourceContext) -> Cushion + Send + 'a,
-        SourceContext: 'a,
+        F: Fn(SourceContext) -> Cushion + Send + 'static,
+        SourceContext: 'static,
     {
         self.add_raw_source(transform_source(source, transformer))
     }
 
-    pub fn add_raw_source(mut self, source: Source<'a, Cushion>) -> Self {
+    pub fn add_raw_source(mut self, source: Source<Cushion>) -> Self {
         self.batcher.add_raw_source(source);
         self
     }
 
     pub fn add_filter<FilterContext, FilterT, F>(self, filter: FilterT, transformer: F) -> Self
     where
-        F: Fn(&Cushion) -> FilterContext + Send + 'a,
-        FilterContext: 'a + Sync,
-        FilterT: Filter<'a, Context = FilterContext> + 'a,
+        FilterT: Filter<Context = FilterContext> + 'static,
+        FilterContext: Sync + Send + 'static,
+        F: Fn(&Cushion) -> FilterContext + Send + 'static,
     {
         self.add_raw_filter(FilterWrapper::new(filter, transformer))
     }
 
     pub fn add_raw_filter<FilterT>(mut self, filter: FilterT) -> Self
     where
-        FilterT: Filter<'a, Context = Cushion> + 'a,
+        FilterT: Filter<Context = Cushion> + 'static,
     {
         self.batcher.add_raw_filter(filter);
         self
@@ -91,35 +87,36 @@ where
 
     pub fn add_sorter<SorterContext, SorterT, F>(self, sorter: SorterT, transformer: F) -> Self
     where
-        F: Fn(&Cushion) -> SorterContext + Send + 'a,
-        SorterContext: 'a + Sync,
-        SorterT: Sorter<'a, Context = SorterContext> + 'a,
-        Cushion: 'a + Send,
+        SorterT: Sorter<Context = SorterContext> + 'static,
+        SorterContext: Sync + Send + 'static,
+        F: Fn(&Cushion) -> SorterContext + Send + 'static,
     {
         self.add_raw_sorter(SorterWrapper::new(sorter, transformer))
     }
 
     pub fn add_raw_sorter<SorterT>(mut self, sorter: SorterT) -> Self
     where
-        SorterT: Sorter<'a, Context = Cushion> + 'a,
+        SorterT: Sorter<Context = Cushion> + 'static,
     {
         self.batcher.add_raw_sorter(sorter);
         self
     }
 
-    pub fn add_action<ActionContext, ActionT, F>(self, action: ActionT, transformer: F) -> Self
+    pub fn add_action<ActionContext: 'static, ActionT, F>(
+        self,
+        action: ActionT,
+        transformer: F,
+    ) -> Self
     where
-        F: Fn(&Cushion) -> ActionContext + Send + 'a,
-        ActionT: Action<'a, Context = ActionContext> + 'a,
-        ActionContext: 'a,
-        Cushion: 'a + Sync,
+        ActionT: Action<Context = ActionContext> + 'static,
+        F: Fn(&Cushion) -> ActionContext + Send + 'static,
     {
         self.add_raw_action(ActionWrapper::new(action, transformer))
     }
 
     pub fn add_raw_action<ActionT>(mut self, action: ActionT) -> Self
     where
-        ActionT: Action<'a, Context = Cushion> + 'a,
+        ActionT: Action<Context = Cushion> + 'static,
     {
         self.actions.push(Box::new(action));
 
@@ -128,41 +125,40 @@ where
 
     pub fn set_ui<F>(mut self, ui: UIT, transformer: F) -> Self
     where
-        F: Fn(&Cushion) -> UIContext + Send + Sync + 'a,
+        F: Fn(&Cushion) -> UIContext + Send + Sync + 'static,
     {
         self.ui = Some(ui);
-        self.batcher.cusion_to_ui = Some(Box::new(transformer));
+        self.batcher.cushion_to_ui = Some(Box::new(transformer));
         self
     }
 
     pub fn add_generator<Item, GenT, F>(self, generator: GenT, transformer: F) -> Self
     where
-        Item: 'a,
-        F: Fn(Item) -> Cushion + Sync + Send + 'a,
-        GenT: Generator<Item = Item> + Sync + Send + 'a,
-        Cushion: Sync + 'a,
+        GenT: Generator<Item = Item> + Sync + Send + 'static,
+        Item: 'static,
+        F: Fn(Item) -> Cushion + Sync + Send + 'static,
     {
         self.add_raw_generator(GenWrapper::new(generator, transformer))
     }
 
     pub fn add_raw_generator<GenT>(mut self, generator: GenT) -> Self
     where
-        GenT: Generator<Item = Cushion> + Sync + Send + 'a,
+        GenT: Generator<Item = Cushion> + Sync + Send + 'static,
     {
         self.batcher.add_raw_generator(generator);
         self
     }
 
     pub async fn run(self) -> Result<()> {
-        let cusion: Option<Cushion> = self
+        let cushion: Option<Cushion> = self
             .ui
             .ok_or_eyre("UI must be set before calling run")?
             .run(self.batcher)
             .await?;
 
-        if let Some(cusion) = cusion {
+        if let Some(cushion) = cushion {
             for ai in self.actions {
-                ai.act(&cusion)?;
+                ai.act(&cushion)?;
             }
         }
 
@@ -171,7 +167,7 @@ where
 
     /// If `filter_and` is true and more than one filter is provided,
     /// the launcher will display only entries that satisfy all filter predicates.
-    /// The default value is false.
+    /// The default value is true.
     pub fn filter_and(mut self, flag: bool) -> Self {
         self.batcher.filter_and = flag;
         self
