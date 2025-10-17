@@ -42,6 +42,11 @@ impl<T> Buffer<T> {
     }
 
     #[inline]
+    pub(crate) fn into_inner(self) -> Vec<T> {
+        self.vec
+    }
+
+    #[inline]
     pub(crate) fn as_mut(&mut self) -> &mut Vec<T> {
         &mut self.vec
     }
