@@ -1,4 +1,4 @@
-use color_eyre::eyre::{Result, ensure};
+use color_eyre::eyre::{Result, ensure, eyre};
 
 use tracing::{debug, info};
 
@@ -115,6 +115,18 @@ impl<Cushion> Default for BatcherState<Cushion> {
     }
 }
 
+pub struct Prepared<T>(Buffer<(T, usize)>);
+
+impl<T> Prepared<T> {
+    pub(crate) fn into_inner(self) -> Buffer<(T, usize)> {
+        self.0
+    }
+
+    pub(crate) fn new(value: Buffer<(T, usize)>) -> Self {
+        Self(value)
+    }
+}
+
 impl<Cushion, UIContext> Batcher<Cushion, UIContext>
 where
     Cushion: Send,
@@ -157,16 +169,26 @@ where
 
     /// Prepares the next batch of indices for rendering.
     ///
-    /// This asynchronous function generates and returns a `Buffer<usize>` containing indices
+    /// This asynchronous function generates and returns a `Prepared<UIContext>` containing indices
     /// that correspond to UI elements needing rendering. The resulting buffer is intended to be used
     /// in conjunction with a rendering buffer of type `Buffer<(UIContext, usize)>` during the merge process.
     ///
     /// For optimal performance, it is recommended that this function runs concurrently with the rendering process.
     #[must_use]
     #[inline]
-    pub async fn prepare(&mut self) -> Buffer<usize> {
+    pub async fn prepare(&mut self) -> Prepared<UIContext> {
         info!("Preparing");
         debug!("state on prepare {:?}", self.state);
+
+        if self.cushion_to_ui.is_none() {
+            panic!(
+                "{}",
+                eyre!(
+                    "Cushion to UIContext did not set. Did you set UI?(This error is probably not called because of the way Rust works!)"
+                )
+            );
+        }
+
         let mut batch_count = if self.batch_size == 0 {
             usize::MAX
         } else {
@@ -262,6 +284,8 @@ where
             }
         }
 
+        let ctuf = self.cushion_to_ui.as_ref().unwrap();
+
         let mut v: Vec<_> = v
             .into_iter()
             .filter(|ci| {
@@ -275,11 +299,14 @@ where
                         .any(|filter| filter.predicate(&self.state.items[*ci], &self.state.input))
                 }
             })
+            .map(|ci| (ctuf(&self.state.items[ci]), ci))
             .collect();
 
-        v.sort_by(self.create_sorter());
+        let sorterf = self.create_sorter();
 
-        v.into()
+        v.sort_by(|(_, lhs), (_, rhs)| sorterf(lhs, rhs));
+
+        Prepared::new(v.into())
     }
 
     /// Merges UI context data into the rendering buffer.
@@ -299,18 +326,14 @@ where
     pub fn merge(
         &mut self,
         buf: &mut Buffer<(UIContext, usize)>,
-        mut from: Buffer<usize>,
+        from: Prepared<UIContext>,
     ) -> Result<bool> {
-        ensure!(
-            self.cushion_to_ui.is_some(),
-            "Cushion to UIContext did not set. Did you set UI?(This error is probably not called because of the way Rust works!)"
-        );
         debug!("state on merge: {:?}", self.state);
 
         // sorterは順番に適用していくのと、逆にしてstd::Ordering::Equalが出たら次のやつを参照するっていうのが同義っぽいきがする
         // どっちにするかだけど、std::Ordering::Equalが出たら戻るほうが(ここでは逆にしたりしない)計算量が少なそう
 
-        let v = from.as_mut();
+        let v = from.into_inner().into_inner();
 
         let sorterf = self.create_sorter();
 
@@ -321,23 +344,20 @@ where
             let mut merged = Vec::with_capacity(dst_owned.len() + v.len());
 
             let mut iter_dst = dst_owned.into_iter();
-            let mut iter_src = v.iter();
+            let mut iter_src = v.into_iter();
 
             let mut next_dst = iter_dst.next();
             let mut next_src = iter_src.next();
 
-            while let (Some(a), Some(b)) = (next_dst.as_ref(), next_src.as_ref()) {
-                if sorterf(&a.1, b) != std::cmp::Ordering::Greater {
-                    merged.push(next_dst.take().unwrap());
+            while next_src.is_some() && next_dst.is_some() {
+                let a = next_dst.take().unwrap();
+                let b = next_src.take().unwrap();
+
+                if sorterf(&a.1, &b.1) != std::cmp::Ordering::Greater {
+                    merged.push(a);
                     next_dst = iter_dst.next();
                 } else {
-                    merged.push({
-                        let ui_ctx = (self.cushion_to_ui.as_ref().unwrap())(
-                            &self.state.items[*next_src.unwrap()],
-                        );
-
-                        (ui_ctx, *next_src.unwrap())
-                    });
+                    merged.push(b);
                     next_src = iter_src.next();
                 }
             }
@@ -347,16 +367,8 @@ where
                 merged.extend(iter_dst);
             }
             if let Some(val) = next_src {
-                merged.push({
-                    let ui_ctx = (self.cushion_to_ui.as_ref().unwrap())(&self.state.items[*val]);
-
-                    (ui_ctx, *val)
-                });
-                merged.extend(iter_src.map(|ci| {
-                    let ui_ctx = (self.cushion_to_ui.as_ref().unwrap())(&self.state.items[*ci]);
-
-                    (ui_ctx, *ci)
-                }));
+                merged.push(val);
+                merged.extend(iter_src);
             }
 
             *dst = merged;
@@ -460,11 +472,12 @@ mod tests {
     #[tokio::test]
     async fn test_prepare() -> Result<(), Box<dyn std::error::Error>> {
         let mut batcher: Batcher<i32, ()> = Batcher::default();
+        batcher.cushion_to_ui = Some(Box::new(|_: &i32| ()));
 
         batcher.add_raw_source(Box::pin(tokio_stream::iter(vec![1, 2])));
 
         let buf = batcher.prepare().await;
-        assert_eq!(buf.len(), 2);
+        assert_eq!(buf.0.len(), 2);
         Ok(())
     }
 }
