@@ -349,10 +349,9 @@ where
             let mut next_dst = iter_dst.next();
             let mut next_src = iter_src.next();
 
-            while next_src.is_some() && next_src.is_some() {
-                let (Some(a), Some(b)) = (next_dst.take(), next_src.take()) else {
-                    unreachable!()
-                };
+            while next_src.is_some() && next_dst.is_some() {
+                let a = next_dst.take().unwrap();
+                let b = next_src.take().unwrap();
 
                 if sorterf(&a.1, &b.1) != std::cmp::Ordering::Greater {
                     merged.push(a);
@@ -473,11 +472,12 @@ mod tests {
     #[tokio::test]
     async fn test_prepare() -> Result<(), Box<dyn std::error::Error>> {
         let mut batcher: Batcher<i32, ()> = Batcher::default();
+        batcher.cushion_to_ui = Some(Box::new(|_: &i32| ()));
 
         batcher.add_raw_source(Box::pin(tokio_stream::iter(vec![1, 2])));
 
         let buf = batcher.prepare().await;
-        assert_eq!(buf.len(), 2);
+        assert_eq!(buf.0.len(), 2);
         Ok(())
     }
 }
