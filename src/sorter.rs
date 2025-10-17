@@ -8,13 +8,11 @@ pub trait Sorter: Send {
 
 pub struct ClosureSorter<Context, F>(F, PhantomData<Context>)
 where
-    F: Fn(&Context, &Context, &str) -> std::cmp::Ordering,
-    Context:;
+    F: Fn(&Context, &Context, &str) -> std::cmp::Ordering;
 
 impl<Context, F> ClosureSorter<Context, F>
 where
     F: Fn(&Context, &Context, &str) -> std::cmp::Ordering,
-    Context:,
 {
     pub fn new(f: F) -> Self {
         Self(f, PhantomData)
