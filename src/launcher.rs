@@ -167,7 +167,7 @@ where
 
     /// If `filter_and` is true and more than one filter is provided,
     /// the launcher will display only entries that satisfy all filter predicates.
-    /// The default value is false.
+    /// The default value is true.
     pub fn filter_and(mut self, flag: bool) -> Self {
         self.batcher.filter_and = flag;
         self
