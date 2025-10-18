@@ -12,9 +12,9 @@ pub mod batcher;
 
 pub struct Launcher<Cushion, UIT, UIContext>
 where
-    UIT: UI<Context = UIContext>,
+    UIT: UI<Cushion, Context = UIContext>,
     UIContext: Send,
-    Cushion: Sync + Send,
+    Cushion: Sync + Send + 'static,
 {
     batcher: Batcher<Cushion, UIContext>,
 
@@ -24,7 +24,7 @@ where
 
 impl<Cushion, UIT, UIContext> Default for Launcher<Cushion, UIT, UIContext>
 where
-    UIT: UI<Context = UIContext>,
+    UIT: UI<Cushion, Context = UIContext>,
     UIContext: Send,
     Cushion: Sync + Send,
 {
@@ -51,7 +51,7 @@ where
 /// as the transformer function
 impl<Cushion, UIT, UIContext> Launcher<Cushion, UIT, UIContext>
 where
-    UIT: UI<Context = UIContext>,
+    UIT: UI<Cushion, Context = UIContext>,
     UIContext: Send,
     Cushion: Send + Sync + 'static,
 {

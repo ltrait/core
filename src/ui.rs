@@ -1,9 +1,9 @@
 use color_eyre::Result;
 
-pub trait UI {
+pub trait UI<Cushion: Send + Sync + 'static> {
     type Context;
 
-    fn run<Cushion: Send>(
+    fn run(
         &self,
         batcher: crate::launcher::batcher::Batcher<Cushion, Self::Context>,
     ) -> impl std::future::Future<Output = Result<Option<Cushion>>> + Send;
