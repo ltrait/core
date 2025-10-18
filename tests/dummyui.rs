@@ -29,17 +29,15 @@ where
     }
 }
 
-impl<T, F> UI for DummyUI<T, F>
+impl<T, F, Cushion> UI<Cushion> for DummyUI<T, F>
 where
     T: Sync + Send,
     F: Fn(&T) + Sync,
+    Cushion: Send + Sync + 'static,
 {
     type Context = T;
 
-    async fn run<Cushion: Send>(
-        &self,
-        mut batcher: Batcher<Cushion, Self::Context>,
-    ) -> Result<Option<Cushion>> {
+    async fn run(&self, mut batcher: Batcher<Cushion, Self::Context>) -> Result<Option<Cushion>> {
         let mut more = true;
         let mut buf: Buffer<(T, usize)> = Buffer::default();
 
