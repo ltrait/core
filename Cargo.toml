@@ -8,7 +8,7 @@ authors = ["satler <satler@satler.dev>"]
 
 documentation = "https://docs.rs/ltrait/"
 homepage = "https://crates.io/crates/ltrait"
-repository = "https://github.com/ltrait/core"
+repository = "https://github.com/ltrait/core" #
 
 exclude = [".envrc"]
 
